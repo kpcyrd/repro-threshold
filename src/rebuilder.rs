@@ -33,6 +33,14 @@ pub struct Rebuilder {
     pub contact: Option<String>,
 }
 
+impl Rebuilder {
+    pub fn reconfigure(&mut self, name: Option<String>) {
+        if let Some(name) = name {
+            self.name = name;
+        }
+    }
+}
+
 pub async fn fetch_rebuilderd_community() -> Result<Vec<Rebuilder>> {
     // TODO: request timeouts
     let http = http::client();
@@ -110,14 +118,14 @@ distributions = ["archlinux", "debian"]
             &[
                 Rebuilder {
                     name: "Rebuilder One".to_string(),
-                    url: "https://one.example.com".to_string(),
+                    url: "https://one.example.com".parse().unwrap(),
                     distributions: vec!["archlinux".to_string()],
                     country: Some("DEU".to_string()),
                     contact: Some("Hello!".to_string()),
                 },
                 Rebuilder {
                     name: "Rebuilder Two".to_string(),
-                    url: "https://two.example.com".to_string(),
+                    url: "https://two.example.com".parse().unwrap(),
                     distributions: vec!["archlinux".to_string(), "debian".to_string()],
                     country: None,
                     contact: None,

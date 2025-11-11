@@ -3,14 +3,24 @@ use crate::{
     rebuilder::{Rebuilder, Selectable},
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, path::PathBuf};
+use std::collections::{BTreeSet, HashSet};
+use std::path::PathBuf;
 use tokio::{fs, io};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
+    /// Rebuilders selected as trusted by the user
+    #[serde(default)]
     pub selected_rebuilders: Vec<Rebuilder>,
+    /// Rebuilders added manually by the user
+    #[serde(default)]
     pub custom_rebuilders: Vec<Rebuilder>,
+    /// Cached list of rebuilders from rebuilderd-community
+    #[serde(default)]
     pub cached_rebuilderd_community: Vec<Rebuilder>,
+    /// Blindly allow these packages, even if nobody could reproduce the binary
+    #[serde(default)]
+    pub blindly_allow: BTreeSet<String>,
 }
 
 impl Config {

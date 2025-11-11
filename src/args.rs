@@ -82,10 +82,13 @@ pub enum Plumbing {
     /// Authenticate a package through rebuilder attestations
     Verify {
         #[arg(short = 'S', long = "signing-key")]
-        signing_keys: Vec<String>,
+        signing_keys: Vec<PathBuf>,
         #[arg(short = 'A', long = "attestation")]
         attestations: Vec<PathBuf>,
-        threshold: Option<usize>,
+        #[arg(short = 't', long = "threshold")]
+        threshold: usize,
+        /// The file to authenticate
+        file: PathBuf,
     },
     Completions(Completions),
 }

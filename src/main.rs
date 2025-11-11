@@ -7,17 +7,22 @@ mod event;
 mod http;
 mod plumbing;
 mod rebuilder;
+mod transport;
 mod ui;
 
 use crate::app::App;
-use crate::args::{Args, SubCommand, Transport};
+use crate::args::{Args, SubCommand};
 use crate::config::Config;
 use crate::errors::*;
 use clap::Parser;
+use env_logger::Env;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
+
+    let log_level = "info";
+    env_logger::init_from_env(Env::default().default_filter_or(log_level));
 
     match args.subcommand {
         None => {
@@ -28,10 +33,7 @@ async fn main() -> Result<()> {
             ratatui::restore();
             result
         }
-        Some(SubCommand::Transport(transport)) => match transport {
-            Transport::Alpm { .. } => todo!("alpm"),
-            Transport::Apt => todo!("apt"),
-        },
-        Some(SubCommand::Plumbing(plumbing)) => plumbing::run(&plumbing).await,
+        Some(SubCommand::Transport(transport)) => transport::run(transport).await,
+        Some(SubCommand::Plumbing(plumbing)) => plumbing::run(plumbing).await,
     }
 }
