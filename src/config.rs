@@ -1,12 +1,16 @@
-use std::path::PathBuf;
-
-use crate::{errors::*, rebuilder::Rebuilder};
+use crate::{
+    errors::*,
+    rebuilder::{Rebuilder, Selectable},
+};
 use serde::{Deserialize, Serialize};
+use std::{collections::HashSet, path::PathBuf};
 use tokio::{fs, io};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
-    pub rebuilderd_community: Vec<Rebuilder>,
+    pub selected_rebuilders: Vec<Rebuilder>,
+    pub custom_rebuilders: Vec<Rebuilder>,
+    pub cached_rebuilderd_community: Vec<Rebuilder>,
 }
 
 impl Config {
@@ -38,7 +42,55 @@ impl Config {
     }
 
     // XXX: these are provisory, replace with more robust implementation later
-    pub fn save(&self) -> Result<()> {
-        todo!()
+    pub async fn save(&self) -> Result<()> {
+        let path = Self::path()?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .await
+                .with_context(|| format!("Failed to create config directory: {parent:?}"))?;
+        }
+
+        let contents = toml::to_string_pretty(self)?;
+        fs::write(&path, contents)
+            .await
+            .with_context(|| format!("Failed to write config file: {path:?}"))?;
+
+        Ok(())
+    }
+
+    fn rebuilders_by_precedence(&self) -> Vec<Selectable<&Rebuilder>> {
+        let mut rebuilders = Vec::new();
+        rebuilders.extend(self.selected_rebuilders.iter().map(|r| Selectable {
+            active: true,
+            item: r,
+        }));
+        rebuilders.extend(self.custom_rebuilders.iter().map(|r| Selectable {
+            active: false,
+            item: r,
+        }));
+        rebuilders.extend(self.cached_rebuilderd_community.iter().map(|r| Selectable {
+            active: false,
+            item: r,
+        }));
+        rebuilders
+    }
+
+    pub fn rebuilder_by_url(&self, url: &str) -> Option<Selectable<&Rebuilder>> {
+        self.rebuilders_by_precedence()
+            .into_iter()
+            .find(|r| r.item.url.as_str() == url)
+    }
+
+    pub fn resolve_rebuilder_view(&self) -> Vec<Selectable<Rebuilder>> {
+        let mut deduplicate = HashSet::new();
+        let mut rebuilders = Vec::new();
+
+        for rebuilder in self.rebuilders_by_precedence() {
+            if deduplicate.insert(rebuilder.item.url.as_str()) {
+                rebuilders.push(rebuilder.into());
+            }
+        }
+
+        rebuilders
     }
 }

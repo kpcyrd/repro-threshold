@@ -3,21 +3,31 @@ use std::collections::HashMap;
 use crate::errors::*;
 use crate::http;
 use anyhow::Context;
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 const COMMUNITY_URL: &str =
     "https://raw.githubusercontent.com/kpcyrd/rebuilderd-community/refs/heads/main/README.md";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Selectable<T> {
     pub active: bool,
     pub item: T,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+impl<T: Clone> From<Selectable<&T>> for Selectable<T> {
+    fn from(selectable: Selectable<&T>) -> Self {
+        Selectable {
+            active: selectable.active,
+            item: selectable.item.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Rebuilder {
     pub name: String,
-    pub url: String,
+    pub url: Url,
     pub distributions: Vec<String>,
     pub country: Option<String>,
     pub contact: Option<String>,

@@ -66,7 +66,18 @@ pub enum Plumbing {
         /// The rebuilder URL
         url: Url,
         /// Set a human-friendly name for the rebuilder (defaults to the URL domain)
+        #[arg(long = "name")]
         name: Option<String>,
+    },
+    RemoveRebuilder {
+        /// The rebuilder URL
+        url: Url,
+    },
+    /// List configured rebuilders
+    ListRebuilders {
+        /// Show all known rebuilders, not just active/trusted ones
+        #[arg(short = 'a', long = "all")]
+        all: bool,
     },
     /// Authenticate a package through rebuilder attestations
     Verify {

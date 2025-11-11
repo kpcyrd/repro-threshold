@@ -16,13 +16,15 @@ pub struct App {
 
 impl App {
     pub fn new(config: Config) -> Self {
-        Self {
+        let mut app = Self {
             running: true,
             confirm: false,
             scroll: ListState::default(),
             config,
             rebuilders: vec![],
-        }
+        };
+        app.rebuilders = app.config.resolve_rebuilder_view();
+        app
     }
 
     pub async fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
@@ -63,20 +65,25 @@ impl App {
                     self.scroll.select_last();
                 }
                 Some(Event::Reload) => {
-                    // TODO: this is dummy code
                     let list = rebuilder::fetch_rebuilderd_community().await?;
-                    self.rebuilders = list
-                        .into_iter()
-                        .map(|item| Selectable {
-                            active: false,
-                            item,
-                        })
-                        .collect();
+                    self.config.cached_rebuilderd_community = list;
+                    self.config.save().await?;
+
+                    self.rebuilders = self.config.resolve_rebuilder_view();
                 }
                 Some(Event::Toggle) => {
                     if let Some(idx) = self.scroll.selected()
                         && let Some(rebuilder) = self.rebuilders.get_mut(idx)
                     {
+                        if rebuilder.active {
+                            self.config
+                                .selected_rebuilders
+                                .retain(|r| r.url != rebuilder.item.url);
+                        } else {
+                            self.config.selected_rebuilders.push(rebuilder.item.clone());
+                        }
+                        self.config.save().await?;
+
                         rebuilder.active = !rebuilder.active;
                     }
                 }
