@@ -10,6 +10,8 @@ pub enum Event {
     ScrollLast,
     Reload,
     Toggle,
+    Enter,
+    Esc,
     Quit,
 }
 
@@ -27,6 +29,8 @@ impl Event {
                 Some(Event::Reload)
             }
             KeyCode::Char(' ') => Some(Event::Toggle),
+            KeyCode::Enter => Some(Event::Enter),
+            KeyCode::Esc => Some(Event::Esc),
             KeyCode::Char('q') => Some(Event::Quit),
             KeyCode::Char('c') if event.modifiers.contains(KeyModifiers::CONTROL) => {
                 Some(Event::Quit)

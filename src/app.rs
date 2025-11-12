@@ -5,9 +5,15 @@ use crate::rebuilder::{self, Rebuilder, Selectable};
 use crossterm::event::EventStream;
 use ratatui::{DefaultTerminal, widgets::ListState};
 
+#[derive(Debug, PartialEq)]
+pub enum View {
+    Home,
+    Rebuilders,
+}
+
 #[derive(Debug)]
 pub struct App {
-    running: bool,
+    pub view: Option<View>,
     pub confirm: bool,
     pub scroll: ListState,
     pub config: Config,
@@ -17,7 +23,7 @@ pub struct App {
 impl App {
     pub fn new(config: Config) -> Self {
         let mut app = Self {
-            running: true,
+            view: Some(View::Home),
             confirm: false,
             scroll: ListState::default(),
             config,
@@ -30,7 +36,7 @@ impl App {
     pub async fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
         let mut events = EventStream::new();
 
-        while self.running {
+        while self.view.is_some() {
             terminal.draw(|frame| {
                 frame.render_widget(&mut self, frame.area());
             })?;
@@ -87,7 +93,22 @@ impl App {
                         rebuilder.active = !rebuilder.active;
                     }
                 }
-                Some(Event::Quit) => self.running = false,
+                Some(Event::Enter) => {
+                    if self.view == Some(View::Home) {
+                        self.view = Some(View::Rebuilders);
+                        self.rebuilders = self.config.resolve_rebuilder_view();
+                    }
+                }
+                Some(Event::Esc) => {
+                    self.view = Some(View::Home);
+                }
+                Some(Event::Quit) => {
+                    self.view = if self.view == Some(View::Home) {
+                        None
+                    } else {
+                        Some(View::Home)
+                    }
+                }
                 None => {}
             }
         }
