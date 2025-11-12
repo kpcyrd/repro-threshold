@@ -35,7 +35,7 @@ impl App {
             .highlight_symbol(">")
             .highlight_spacing(HighlightSpacing::Always);
 
-        StatefulWidget::render(&list, area, buf, &mut self.scroll);
+        StatefulWidget::render(&list, area, buf, self.scroll());
 
         Scrollbar::new(ScrollbarOrientation::VerticalRight)
             .begin_symbol(None)
@@ -48,7 +48,7 @@ impl App {
                 }),
                 buf,
                 &mut ScrollbarState::new(list.len())
-                    .position(self.scroll.selected().unwrap_or_default()),
+                    .position(self.scroll().selected().unwrap_or_default()),
             );
     }
 }

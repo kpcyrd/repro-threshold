@@ -14,9 +14,10 @@ impl App {
             .bg(NORMAL_ROW_BG);
 
         let items = vec![
+            ListItem::new(" Required reproduction threshold: 123/456"),
             ListItem::new(" Configure trusted rebuilders (1234 selected)"),
             ListItem::new(" Add/remove packages from 'blindly trust' allow-list (12345 entries)"),
-            ListItem::new(" Required reproduction threshold: 123/456"),
+            ListItem::new(" Quit"),
         ];
 
         let list = List::new(items)
@@ -25,6 +26,6 @@ impl App {
             .highlight_symbol(">")
             .highlight_spacing(HighlightSpacing::Always);
 
-        StatefulWidget::render(&list, area, buf, &mut self.scroll);
+        StatefulWidget::render(&list, area, buf, self.scroll());
     }
 }

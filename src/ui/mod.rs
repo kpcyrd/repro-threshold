@@ -19,7 +19,7 @@ impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         match self.view {
             Some(crate::app::View::Home) => self.render_home(area, buf),
-            Some(crate::app::View::Rebuilders) => self.render_rebuilders(area, buf),
+            Some(crate::app::View::Rebuilders { .. }) => self.render_rebuilders(area, buf),
             None => {}
         }
 

@@ -5,32 +5,54 @@ use crate::rebuilder::{self, Rebuilder, Selectable};
 use crossterm::event::EventStream;
 use ratatui::{DefaultTerminal, widgets::ListState};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum View {
     Home,
-    Rebuilders,
+    Rebuilders { scroll: ListState },
+}
+
+impl View {
+    pub const fn home() -> Self {
+        View::Home
+    }
+
+    pub fn rebuilders() -> Self {
+        let mut scroll = ListState::default();
+        scroll.select_first();
+        View::Rebuilders { scroll }
+    }
 }
 
 #[derive(Debug)]
 pub struct App {
     pub view: Option<View>,
+    // Keep this state even when switching views
+    pub home_scroll: ListState,
     pub confirm: bool,
-    pub scroll: ListState,
     pub config: Config,
     pub rebuilders: Vec<Selectable<Rebuilder>>,
 }
 
 impl App {
     pub fn new(config: Config) -> Self {
+        let mut home_scroll = ListState::default();
+        home_scroll.select_first();
         let mut app = Self {
-            view: Some(View::Home),
+            view: Some(View::home()),
+            home_scroll,
             confirm: false,
-            scroll: ListState::default(),
             config,
             rebuilders: vec![],
         };
         app.rebuilders = app.config.resolve_rebuilder_view();
         app
+    }
+
+    pub fn scroll(&mut self) -> &mut ListState {
+        match &mut self.view {
+            Some(View::Rebuilders { scroll }) => scroll,
+            _ => &mut self.home_scroll,
+        }
     }
 
     pub async fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
@@ -59,26 +81,29 @@ impl App {
                     self.confirm = true;
                 }
                 Some(Event::ScrollUp) => {
-                    self.scroll.select_previous();
+                    self.scroll().select_previous();
                 }
                 Some(Event::ScrollDown) => {
-                    self.scroll.select_next();
+                    self.scroll().select_next();
                 }
                 Some(Event::ScrollFirst) => {
-                    self.scroll.select_first();
+                    self.scroll().select_first();
                 }
                 Some(Event::ScrollLast) => {
-                    self.scroll.select_last();
+                    self.scroll().select_last();
                 }
                 Some(Event::Reload) => {
-                    let list = rebuilder::fetch_rebuilderd_community().await?;
-                    self.config.cached_rebuilderd_community = list;
-                    self.config.save().await?;
+                    if let Some(View::Rebuilders { .. }) = self.view {
+                        let list = rebuilder::fetch_rebuilderd_community().await?;
+                        self.config.cached_rebuilderd_community = list;
+                        self.config.save().await?;
 
-                    self.rebuilders = self.config.resolve_rebuilder_view();
+                        self.rebuilders = self.config.resolve_rebuilder_view();
+                    }
                 }
                 Some(Event::Toggle) => {
-                    if let Some(idx) = self.scroll.selected()
+                    if let Some(View::Rebuilders { scroll }) = self.view
+                        && let Some(idx) = scroll.selected()
                         && let Some(rebuilder) = self.rebuilders.get_mut(idx)
                     {
                         if rebuilder.active {
@@ -94,19 +119,27 @@ impl App {
                     }
                 }
                 Some(Event::Enter) => {
-                    if self.view == Some(View::Home) {
-                        self.view = Some(View::Rebuilders);
-                        self.rebuilders = self.config.resolve_rebuilder_view();
+                    if let Some(View::Home) = self.view {
+                        match self.home_scroll.selected() {
+                            Some(0) => (),
+                            Some(1) => {
+                                self.view = Some(View::rebuilders());
+                                self.rebuilders = self.config.resolve_rebuilder_view();
+                            }
+                            Some(2) => (), // TODO
+                            Some(3) => self.view = None,
+                            _ => {}
+                        }
                     }
                 }
                 Some(Event::Esc) => {
-                    self.view = Some(View::Home);
+                    self.view = Some(View::home());
                 }
                 Some(Event::Quit) => {
-                    self.view = if self.view == Some(View::Home) {
+                    self.view = if let Some(View::Home) = self.view {
                         None
                     } else {
-                        Some(View::Home)
+                        Some(View::home())
                     }
                 }
                 None => {}
