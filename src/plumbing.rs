@@ -18,7 +18,7 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
         Plumbing::AddRebuilder { url, name } => {
             let mut config = Config::load().await?;
 
-            if let Some(rebuilder) = config.selected_rebuilders.iter_mut().find(|r| r.url == url) {
+            if let Some(rebuilder) = config.trusted_rebuilders.iter_mut().find(|r| r.url == url) {
                 // we track selected rebuilders as copy in case they get deleted from e.g. the rebuilderd-community list
                 // make sure the copy is also updated accordingly
                 rebuilder.reconfigure(name.clone());
@@ -50,7 +50,7 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
         Plumbing::RemoveRebuilder { url } => {
             let mut config = Config::load().await?;
 
-            config.selected_rebuilders.retain(|r| r.url != url);
+            config.trusted_rebuilders.retain(|r| r.url != url);
             config.custom_rebuilders.retain(|r| r.url != url);
 
             config.save().await?;

@@ -108,10 +108,10 @@ impl App {
                     {
                         if rebuilder.active {
                             self.config
-                                .selected_rebuilders
+                                .trusted_rebuilders
                                 .retain(|r| r.url != rebuilder.item.url);
                         } else {
-                            self.config.selected_rebuilders.push(rebuilder.item.clone());
+                            self.config.trusted_rebuilders.push(rebuilder.item.clone());
                         }
                         self.config.save().await?;
 

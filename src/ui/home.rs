@@ -2,8 +2,13 @@ use crate::app::App;
 use crate::ui::{NORMAL_ROW_BG, SELECTED_STYLE};
 use ratatui::{
     prelude::*,
+    style::palette::tailwind::{GREEN, RED, YELLOW},
     widgets::{Block, BorderType, HighlightSpacing, List, ListItem},
 };
+
+const COLOR_POSITIVE: Color = GREEN.c500;
+const COLOR_WARNING: Color = YELLOW.c300;
+const COLOR_NEGATIVE: Color = RED.c600;
 
 impl App {
     pub fn render_home(&mut self, area: Rect, buf: &mut Buffer) {
@@ -13,10 +18,30 @@ impl App {
             .border_type(BorderType::Rounded)
             .bg(NORMAL_ROW_BG);
 
+        let required_threshold = self.config.required_threshold;
+        let trusted_rebuilders = self.config.trusted_rebuilders.len();
+
         let items = vec![
-            ListItem::new(" Required reproduction threshold: 123/456"),
-            ListItem::new(" Configure trusted rebuilders (1234 selected)"),
-            ListItem::new(" Add/remove packages from 'blindly trust' allow-list (12345 entries)"),
+            ListItem::new(Line::from_iter([
+                Span::raw(" Required reproduction threshold: "),
+                Span::styled(
+                    required_threshold.to_string(),
+                    match required_threshold {
+                        0 => COLOR_NEGATIVE,
+                        1 => COLOR_WARNING,
+                        _ => COLOR_POSITIVE,
+                    },
+                ),
+                Span::raw("/"),
+                Span::raw(format!("{trusted_rebuilders}")),
+            ])),
+            ListItem::new(format!(
+                " Configure trusted rebuilders ({trusted_rebuilders} selected)"
+            )),
+            ListItem::new(format!(
+                " Add/remove packages from 'blindly trust' allow-list ({} entries)",
+                self.config.blindly_allow.len()
+            )),
             ListItem::new(" Quit"),
         ];
 

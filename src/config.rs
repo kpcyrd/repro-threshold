@@ -9,9 +9,12 @@ use tokio::{fs, io};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
+    /// Number of rebuilder attestations required until we believe them
+    #[serde(default)]
+    pub required_threshold: usize,
     /// Rebuilders selected as trusted by the user
     #[serde(default)]
-    pub selected_rebuilders: Vec<Rebuilder>,
+    pub trusted_rebuilders: Vec<Rebuilder>,
     /// Rebuilders added manually by the user
     #[serde(default)]
     pub custom_rebuilders: Vec<Rebuilder>,
@@ -70,7 +73,7 @@ impl Config {
 
     fn rebuilders_by_precedence(&self) -> Vec<Selectable<&Rebuilder>> {
         let mut rebuilders = Vec::new();
-        rebuilders.extend(self.selected_rebuilders.iter().map(|r| Selectable {
+        rebuilders.extend(self.trusted_rebuilders.iter().map(|r| Selectable {
             active: true,
             item: r,
         }));
