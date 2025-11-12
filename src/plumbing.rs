@@ -1,10 +1,10 @@
 use crate::args::Plumbing;
-use crate::attestation::{self, Attestation};
+use crate::attestation;
 use crate::config::Config;
 use crate::errors::*;
 use crate::rebuilder;
 use std::collections::BTreeSet;
-use tokio::fs::{self, File};
+use tokio::fs::File;
 
 pub async fn run(plumbing: Plumbing) -> Result<()> {
     match plumbing {
@@ -79,42 +79,39 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
         } => {
             let mut confirms = BTreeSet::new();
 
-            // TODO: performance wise this is a very naive implementation, clean this up later
-            for attestation_path in &attestations {
-                for signing_key_path in &signing_keys {
-                    let attestation = fs::read(&attestation_path).await.with_context(|| {
-                        format!("Failed to read attestation: {attestation_path:?}")
-                    })?;
+            let (sha256, attestations, signing_keys) = tokio::try_join!(
+                async {
+                    let reader = File::open(&file)
+                        .await
+                        .with_context(|| format!("Failed to open artifact file: {file:?}"))?;
+                    attestation::sha256_file(reader)
+                        .await
+                        .with_context(|| format!("Failed to calculate hash for file: {file:?}"))
+                },
+                async { Ok(attestation::load_all_attestations(&attestations).await) },
+                async { attestation::load_all_signing_keys(&signing_keys).await },
+            )?;
 
-                    let attestation = Attestation::parse(&attestation).with_context(|| {
-                        format!("Failed to parse attestation: {attestation_path:?}")
-                    })?;
+            for signing_key in signing_keys {
+                let key_id = signing_key.key_id();
+                let Some(attestations) = attestations.get(key_id) else {
+                    continue;
+                };
 
-                    let signing_key = fs::read(&signing_key_path).await.with_context(|| {
-                        format!("Failed to read signing keys: {signing_key_path:?}")
-                    })?;
+                for attestation in attestations {
+                    let (attestation_path, attestation) = attestation.as_ref();
 
-                    let signing_keys =
-                        attestation::pem_to_pubkeys(&signing_key).with_context(|| {
-                            format!("Failed to parse signing keys: {signing_key_path:?}")
-                        })?;
-
-                    for signing_key in signing_keys.flatten() {
-                        let file = File::open(&file)
-                            .await
-                            .with_context(|| format!("Failed to open artifact file: {file:?}"))?;
-
-                        let key_id = signing_key.key_id();
-                        if attestation.verify(file, &signing_key).await.is_ok() {
-                            debug!(
-                                "Successfully verified attestation {attestation_path:?} with signing key {key_id:?}"
-                            );
-                            confirms.insert(key_id.to_owned());
-                        } else {
-                            debug!(
-                                "Failed to verify attestation {attestation_path:?} with signing key {key_id:?}"
-                            );
-                        }
+                    if attestation.verify_sha256(&sha256, &signing_key).is_ok() {
+                        debug!(
+                            "Successfully verified attestation {attestation_path:?} with signing key {key_id:?}"
+                        );
+                        confirms.insert(key_id.to_owned());
+                        // We only count one vote per key, so skip the other attestations and continue with the next key
+                        break;
+                    } else {
+                        debug!(
+                            "Failed to verify attestation {attestation_path:?} with signing key {key_id:?}"
+                        );
                     }
                 }
             }

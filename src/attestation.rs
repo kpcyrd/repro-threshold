@@ -1,10 +1,14 @@
 use crate::errors::*;
 use in_toto::{
-    crypto::{HashAlgorithm, PublicKey, SignatureScheme},
+    crypto::{HashAlgorithm, KeyId, PublicKey, SignatureScheme},
     models::{Metablock, MetadataWrapper},
 };
 use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::slice;
+use tokio::fs;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
 const PEM_PUBLIC_KEY: &str = "PUBLIC KEY";
@@ -46,6 +50,12 @@ impl Attestation {
         Ok(Attestation { metablock })
     }
 
+    pub async fn parse_file(path: &Path) -> Result<Self> {
+        let attestation = fs::read(path).await?;
+        Self::parse(&attestation)
+    }
+
+    #[cfg(test)]
     pub async fn verify<R: AsyncRead + Unpin>(
         &self,
         reader: R,
@@ -60,8 +70,12 @@ impl Attestation {
             bail!("Attestation metadata is not an in-toto Link")
         };
 
-        // check signature
-        self.metablock
+        // check signature (to avoid a warning, remove all other signatures)
+        let mut metablock = self.metablock.clone();
+        metablock
+            .signatures
+            .retain(|sig| sig.key_id() == public_key.key_id());
+        metablock
             .verify(1, slice::from_ref(public_key))
             .context("Failed to verify attestation signature")?;
 
@@ -77,6 +91,57 @@ impl Attestation {
 
         bail!("SHA256 hash does not match any product hash in attestation");
     }
+
+    pub fn list_key_ids(&self) -> Vec<KeyId> {
+        self.metablock
+            .signatures
+            .iter()
+            .map(|sig| sig.key_id().to_owned())
+            .collect()
+    }
+}
+
+pub async fn load_all_attestations<I: IntoIterator<Item = P>, P: AsRef<Path>>(
+    paths: I,
+) -> BTreeMap<KeyId, Vec<Rc<(PathBuf, Attestation)>>> {
+    let mut map = BTreeMap::<_, Vec<_>>::new();
+    for path in paths {
+        let path = path.as_ref();
+        match Attestation::parse_file(path).await {
+            Ok(attestation) => {
+                let item = Rc::new((path.to_owned(), attestation));
+                let attestation = &item.as_ref().1;
+
+                for key_id in attestation.list_key_ids() {
+                    map.entry(key_id).or_default().push(Rc::clone(&item));
+                }
+            }
+            Err(err) => {
+                error!("Failed to read attestation {path:?}: {err:#}");
+            }
+        }
+    }
+    map
+}
+
+pub async fn load_all_signing_keys<I: IntoIterator<Item = P>, P: AsRef<Path>>(
+    paths: I,
+) -> Result<Vec<PublicKey>> {
+    let mut list = Vec::new();
+
+    for path in paths {
+        let path = path.as_ref();
+        let signing_key = fs::read(&path)
+            .await
+            .with_context(|| format!("Failed to read signing keys: {path:?}"))?;
+
+        let signing_keys = pem_to_pubkeys(&signing_key)
+            .with_context(|| format!("Failed to parse signing keys: {path:?}"))?;
+
+        list.extend(signing_keys.flatten());
+    }
+
+    Ok(list)
 }
 
 #[cfg(test)]
