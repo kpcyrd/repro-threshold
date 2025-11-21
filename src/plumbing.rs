@@ -5,7 +5,6 @@ use crate::errors::*;
 use crate::http;
 use crate::inspect;
 use crate::rebuilder;
-use std::collections::BTreeSet;
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::task::JoinSet;
@@ -81,8 +80,6 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
             threshold,
             file,
         } => {
-            let mut confirms = BTreeSet::new();
-
             // We do this early/outside of try_join! because it's using blocking IO currently (the `ar` crate)
             let mut remote_attestations = JoinSet::new();
             if !rebuilders.is_empty() {
@@ -134,30 +131,7 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
             attestations.merge(remote_attestations);
 
             // Process all attestations for verification
-            for signing_key in signing_keys {
-                let key_id = signing_key.key_id();
-                let Some(attestations) = attestations.get(key_id) else {
-                    continue;
-                };
-
-                for attestation in attestations {
-                    let (attestation_path, attestation) = attestation.as_ref();
-
-                    if attestation.verify_sha256(&sha256, &signing_key).is_ok() {
-                        debug!(
-                            "Successfully verified attestation {attestation_path:?} with signing key {key_id:?}"
-                        );
-                        confirms.insert(key_id.to_owned());
-                        // We only count one vote per key, so skip the other attestations and continue with the next key
-                        break;
-                    } else {
-                        debug!(
-                            "Failed to verify attestation {attestation_path:?} with signing key {key_id:?}"
-                        );
-                    }
-                }
-            }
-
+            let confirms = attestations.verify(&sha256, &signing_keys);
             if confirms.len() >= threshold {
                 info!(
                     "Successfully verified attestations with {}/{} required signatures",

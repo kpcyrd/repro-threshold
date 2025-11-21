@@ -4,7 +4,7 @@ use in_toto::{
     models::{Metablock, MetadataWrapper},
 };
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::slice;
 use std::sync::Arc;
@@ -127,6 +127,36 @@ impl Tree {
 
     pub fn get(&self, key_id: &KeyId) -> Option<&[Arc<(String, Attestation)>]> {
         self.map.get(key_id).map(|v| v.as_slice())
+    }
+
+    pub fn verify(&self, sha256: &[u8], signing_keys: &[PublicKey]) -> BTreeSet<KeyId> {
+        let mut confirms = BTreeSet::new();
+
+        for signing_key in signing_keys {
+            let key_id = signing_key.key_id();
+            let Some(attestations) = self.get(key_id) else {
+                continue;
+            };
+
+            for attestation in attestations {
+                let (attestation_path, attestation) = attestation.as_ref();
+
+                if attestation.verify_sha256(sha256, signing_key).is_ok() {
+                    debug!(
+                        "Successfully verified attestation {attestation_path:?} with signing key {key_id:?}"
+                    );
+                    confirms.insert(key_id.to_owned());
+                    // We only count one vote per key, so skip the other attestations and continue with the next key
+                    break;
+                } else {
+                    debug!(
+                        "Failed to verify attestation {attestation_path:?} with signing key {key_id:?}"
+                    );
+                }
+            }
+        }
+
+        confirms
     }
 }
 
