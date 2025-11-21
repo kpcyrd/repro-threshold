@@ -10,6 +10,7 @@ mod plumbing;
 mod rebuilder;
 mod transport;
 mod ui;
+mod withhold;
 
 use crate::app::App;
 use crate::args::{Args, SubCommand};
