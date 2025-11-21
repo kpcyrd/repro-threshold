@@ -75,7 +75,7 @@ async fn find_control_file<R: AsyncRead + Unpin>(reader: R) -> Result<String> {
     while let Some(entry) = entries.next().await {
         let mut entry = entry.context("Failed to read entry from control.tar")?;
         let path = entry.path()?;
-        debug!("Found entry in .deb: {path:?}");
+        trace!("Found entry in .deb: {path:?}");
         if &*path != "./control" {
             continue;
         }
@@ -134,7 +134,7 @@ pub async fn inspect<P: AsRef<Path>>(path: P) -> Result<Deb> {
         version: version.to_string(),
         architecture: architecture.to_string(),
     };
-    debug!("Parsed .deb data: {data:#?}");
+    debug!("Parsed .deb data: {data:?}");
     Ok(data)
 }
 

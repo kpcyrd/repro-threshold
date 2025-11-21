@@ -2,16 +2,18 @@ use crate::args::Plumbing;
 use crate::attestation;
 use crate::config::Config;
 use crate::errors::*;
+use crate::http;
 use crate::inspect;
 use crate::rebuilder;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 use tokio::fs::File;
+use tokio::task::JoinSet;
 
 pub async fn run(plumbing: Plumbing) -> Result<()> {
     match plumbing {
         Plumbing::FetchRebuilderdCommunity => {
             for rebuilder in rebuilder::fetch_rebuilderd_community().await? {
-                // println!("{:#?}", rebuilder);
                 let json = serde_json::to_string_pretty(&rebuilder)?;
                 println!("{}", json);
             }
@@ -75,12 +77,46 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
         Plumbing::Verify {
             signing_keys,
             attestations,
+            rebuilders,
             threshold,
             file,
         } => {
             let mut confirms = BTreeSet::new();
 
-            let (sha256, attestations, signing_keys) = tokio::try_join!(
+            // We do this early/outside of try_join! because it's using blocking IO currently (the `ar` crate)
+            let mut remote_attestations = JoinSet::new();
+            if !rebuilders.is_empty() {
+                debug!("Inspecting package metadata: {file:?}");
+                // TODO: this is currently .deb only
+                let inspect = inspect::deb::inspect(&file)
+                    .await
+                    .with_context(|| format!("Failed to inspect metadata: {file:?}"))?;
+
+                let http = http::client();
+                let inspect = Arc::new(inspect);
+                for url in rebuilders {
+                    let http = http.clone();
+                    let inspect = inspect.clone();
+                    remote_attestations.spawn(async move {
+                        let attestations = http.fetch_attestations_for_pkg(&url, &inspect).await?;
+
+                        let mut map = BTreeMap::<_, Vec<_>>::new();
+                        for attestation in attestations {
+                            let item = Arc::new((url.to_string(), attestation));
+                            let attestation = &item.as_ref().1;
+
+                            for key_id in attestation.list_key_ids() {
+                                map.entry(key_id).or_default().push(Arc::clone(&item));
+                            }
+                        }
+
+                        Ok::<_, anyhow::Error>(map)
+                    });
+                }
+            }
+
+            // Load all files from the local filesystem and await rebuilder responses
+            let (sha256, attestations, remote_attestations, signing_keys) = tokio::try_join!(
                 async {
                     let reader = File::open(&file)
                         .await
@@ -90,9 +126,23 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
                         .with_context(|| format!("Failed to calculate hash for file: {file:?}"))
                 },
                 async { Ok(attestation::load_all_attestations(&attestations).await) },
+                async {
+                    let mut attestations = Vec::new();
+
+                    while let Some(res) = remote_attestations.join_next().await {
+                        match res {
+                            Ok(Ok(response)) => attestations.extend(response),
+                            Ok(Err(err)) => warn!("Failed to fetch remote attestations: {err:#}"),
+                            Err(err) => warn!("Rebuilder task panicked: {err:#}"),
+                        }
+                    }
+
+                    Ok(attestations)
+                },
                 async { attestation::load_all_signing_keys(&signing_keys).await },
             )?;
 
+            // Process all attestations for verification
             for signing_key in signing_keys {
                 let key_id = signing_key.key_id();
                 let Some(attestations) = attestations.get(key_id) else {

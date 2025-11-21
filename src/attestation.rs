@@ -5,7 +5,7 @@ use in_toto::{
 };
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::rc::Rc;
 use std::slice;
 use tokio::fs;
@@ -103,13 +103,13 @@ impl Attestation {
 
 pub async fn load_all_attestations<I: IntoIterator<Item = P>, P: AsRef<Path>>(
     paths: I,
-) -> BTreeMap<KeyId, Vec<Rc<(PathBuf, Attestation)>>> {
+) -> BTreeMap<KeyId, Vec<Rc<(String, Attestation)>>> {
     let mut map = BTreeMap::<_, Vec<_>>::new();
     for path in paths {
         let path = path.as_ref();
         match Attestation::parse_file(path).await {
             Ok(attestation) => {
-                let item = Rc::new((path.to_owned(), attestation));
+                let item = Rc::new((path.display().to_string(), attestation));
                 let attestation = &item.as_ref().1;
 
                 for key_id in attestation.list_key_ids() {

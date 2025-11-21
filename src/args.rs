@@ -1,4 +1,4 @@
-use clap::{CommandFactory, Parser};
+use clap::{ArgAction, CommandFactory, Parser};
 use clap_complete::Shell;
 use reqwest::Url;
 use std::io::stdout;
@@ -6,6 +6,9 @@ use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 pub struct Args {
+    /// Increase logging output (can be used multiple times)
+    #[arg(short, long, global = true, action(ArgAction::Count))]
+    pub verbose: u8,
     #[clap(subcommand)]
     pub subcommand: Option<SubCommand>,
 }
@@ -85,6 +88,8 @@ pub enum Plumbing {
         signing_keys: Vec<PathBuf>,
         #[arg(short = 'A', long = "attestation")]
         attestations: Vec<PathBuf>,
+        #[arg(short = 'R', long = "rebuilder")]
+        rebuilders: Vec<Url>,
         #[arg(short = 't', long = "threshold")]
         threshold: usize,
         /// The file to authenticate

@@ -22,7 +22,13 @@ use env_logger::Env;
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    let log_level = "info";
+    let log_level = match args.verbose {
+        0 => "repro_threshold=info",
+        1 => "info,repro_threshold=debug",
+        2 => "debug",
+        3 => "debug,repro_threshold=trace",
+        _ => "trace",
+    };
     env_logger::init_from_env(Env::default().default_filter_or(log_level));
 
     match args.subcommand {
