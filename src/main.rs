@@ -5,6 +5,7 @@ mod config;
 mod errors;
 mod event;
 mod http;
+mod inspect;
 mod plumbing;
 mod rebuilder;
 mod transport;

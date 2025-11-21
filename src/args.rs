@@ -90,6 +90,11 @@ pub enum Plumbing {
         /// The file to authenticate
         file: PathBuf,
     },
+    /// Parse metadata from a .deb file
+    InspectDeb {
+        /// The .deb file to inspect
+        file: PathBuf,
+    },
     Completions(Completions),
 }
 

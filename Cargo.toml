@@ -5,9 +5,13 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1"
+ar = "0.9.0"
+astral-tokio-tar = "0.5"
+async-compression = { version = "0.4", features = ["tokio", "xz"] }
 clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.5"
 crossterm = { version = "0.29", features = ["event-stream"] }
+deb822-fast = "0.2.0"
 dirs = "6"
 env_logger = "0.11"
 futures = "0.3"

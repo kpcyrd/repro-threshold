@@ -2,6 +2,7 @@ use crate::args::Plumbing;
 use crate::attestation;
 use crate::config::Config;
 use crate::errors::*;
+use crate::inspect;
 use crate::rebuilder;
 use std::collections::BTreeSet;
 use tokio::fs::File;
@@ -129,6 +130,10 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
                     threshold
                 );
             }
+        }
+        Plumbing::InspectDeb { file } => {
+            let data = inspect::deb::inspect(&file).await?;
+            println!("data={data:#?}");
         }
         Plumbing::Completions(completions) => {
             completions.generate();
