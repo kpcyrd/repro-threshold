@@ -6,8 +6,8 @@ use in_toto::{
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::path::Path;
-use std::rc::Rc;
 use std::slice;
+use std::sync::Arc;
 use tokio::fs;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
@@ -101,27 +101,49 @@ impl Attestation {
     }
 }
 
-pub async fn load_all_attestations<I: IntoIterator<Item = P>, P: AsRef<Path>>(
-    paths: I,
-) -> BTreeMap<KeyId, Vec<Rc<(String, Attestation)>>> {
-    let mut map = BTreeMap::<_, Vec<_>>::new();
+#[derive(Default)]
+pub struct Tree {
+    map: BTreeMap<KeyId, Vec<Arc<(String, Attestation)>>>,
+}
+
+impl Tree {
+    pub fn insert(&mut self, label: String, attestation: Attestation) {
+        let item = Arc::new((label, attestation));
+        let attestation = &item.as_ref().1;
+
+        for key_id in attestation.list_key_ids() {
+            self.map.entry(key_id).or_default().push(Arc::clone(&item));
+        }
+    }
+
+    pub fn merge(&mut self, other: Tree) {
+        for (key_id, attestations) in other.map {
+            self.map
+                .entry(key_id)
+                .or_default()
+                .extend(attestations.into_iter());
+        }
+    }
+
+    pub fn get(&self, key_id: &KeyId) -> Option<&[Arc<(String, Attestation)>]> {
+        self.map.get(key_id).map(|v| v.as_slice())
+    }
+}
+
+pub async fn load_all_attestations<I: IntoIterator<Item = P>, P: AsRef<Path>>(paths: I) -> Tree {
+    let mut tree = Tree::default();
+
     for path in paths {
         let path = path.as_ref();
         match Attestation::parse_file(path).await {
-            Ok(attestation) => {
-                let item = Rc::new((path.display().to_string(), attestation));
-                let attestation = &item.as_ref().1;
-
-                for key_id in attestation.list_key_ids() {
-                    map.entry(key_id).or_default().push(Rc::clone(&item));
-                }
-            }
+            Ok(attestation) => tree.insert(path.display().to_string(), attestation),
             Err(err) => {
                 error!("Failed to read attestation {path:?}: {err:#}");
             }
         }
     }
-    map
+
+    tree
 }
 
 pub async fn load_all_signing_keys<I: IntoIterator<Item = P>, P: AsRef<Path>>(

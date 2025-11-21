@@ -1,4 +1,4 @@
-use crate::attestation::Attestation;
+use crate::attestation::{self, Attestation};
 use crate::errors::*;
 use crate::inspect::deb::Deb;
 use reqwest::Url;
@@ -45,7 +45,7 @@ impl Client {
         &self,
         url: &Url,
         inspect: &Deb,
-    ) -> Result<Vec<Attestation>> {
+    ) -> Result<attestation::Tree> {
         let (mut url, base_url) = (url.clone(), url);
 
         url.path_segments_mut()
@@ -76,7 +76,7 @@ impl Client {
             .with_context(|| format!("Failed to parse json response: {url}"))?;
         trace!("Rebuilder search response: {search:#?}");
 
-        let mut attestations = Vec::new();
+        let mut attestations = attestation::Tree::default();
 
         for record in search.records {
             let Some(build_id) = record.build_id else {
@@ -112,7 +112,7 @@ impl Client {
 
             let attestation = Attestation::parse(&response)
                 .with_context(|| format!("Failed to parse attestation from rebuilder: {url}"))?;
-            attestations.push(attestation);
+            attestations.insert(url.to_string(), attestation);
         }
 
         Ok(attestations)

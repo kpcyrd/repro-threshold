@@ -5,7 +5,7 @@ use crate::errors::*;
 use crate::http;
 use crate::inspect;
 use crate::rebuilder;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::task::JoinSet;
@@ -98,25 +98,13 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
                     let http = http.clone();
                     let inspect = inspect.clone();
                     remote_attestations.spawn(async move {
-                        let attestations = http.fetch_attestations_for_pkg(&url, &inspect).await?;
-
-                        let mut map = BTreeMap::<_, Vec<_>>::new();
-                        for attestation in attestations {
-                            let item = Arc::new((url.to_string(), attestation));
-                            let attestation = &item.as_ref().1;
-
-                            for key_id in attestation.list_key_ids() {
-                                map.entry(key_id).or_default().push(Arc::clone(&item));
-                            }
-                        }
-
-                        Ok::<_, anyhow::Error>(map)
+                        http.fetch_attestations_for_pkg(&url, &inspect).await
                     });
                 }
             }
 
             // Load all files from the local filesystem and await rebuilder responses
-            let (sha256, attestations, remote_attestations, signing_keys) = tokio::try_join!(
+            let (sha256, mut attestations, remote_attestations, signing_keys) = tokio::try_join!(
                 async {
                     let reader = File::open(&file)
                         .await
@@ -127,11 +115,11 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
                 },
                 async { Ok(attestation::load_all_attestations(&attestations).await) },
                 async {
-                    let mut attestations = Vec::new();
+                    let mut attestations = attestation::Tree::default();
 
                     while let Some(res) = remote_attestations.join_next().await {
                         match res {
-                            Ok(Ok(response)) => attestations.extend(response),
+                            Ok(Ok(response)) => attestations.merge(response),
                             Ok(Err(err)) => warn!("Failed to fetch remote attestations: {err:#}"),
                             Err(err) => warn!("Rebuilder task panicked: {err:#}"),
                         }
@@ -141,6 +129,9 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
                 },
                 async { attestation::load_all_signing_keys(&signing_keys).await },
             )?;
+
+            // Merge local and remote attestations
+            attestations.merge(remote_attestations);
 
             // Process all attestations for verification
             for signing_key in signing_keys {
