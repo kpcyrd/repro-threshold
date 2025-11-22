@@ -26,16 +26,26 @@ impl Request {
                 return Ok(None);
             }
             let line = buf.trim_end();
+            trace!("Read line: {line:?}");
 
             if req.status.is_empty() {
                 req.status = line.to_string();
-            } else if line == "" {
+            } else if line.is_empty() {
                 return Ok(Some(req));
-            } else {
-                if let Some((key, value)) = line.split_once(": ") {
-                    req.headers.insert(key.to_string(), value.to_string());
-                }
+            } else if let Some((key, value)) = line.split_once(": ") {
+                req.headers.insert(key.to_string(), value.to_string());
             }
+
+            buf.clear();
+        }
+    }
+
+    fn needs_verification(&self) -> bool {
+        match self.headers.get("Target-Type").map(String::as_str) {
+            Some("deb") | None => true,
+            Some("index") => false,
+            // We don't recognize this type, but it doesn't seem to be a .deb so should be fine
+            Some(_other) => false,
         }
     }
 }
@@ -69,11 +79,13 @@ async fn acquire(http: &http::Client, req: &Request) -> Result<()> {
         .get("Filename")
         .context("Missing `Filename` header")?;
 
-    let url = uri.parse::<Url>().context("Invalid URI")?;
+    let url = uri.strip_prefix("reproduced+").unwrap_or(uri);
+    let url = url.parse::<Url>().context("Invalid URI")?;
     let domain = url.domain().context("URI missing domain")?;
 
     // Open file for writing
     let file = File::options()
+        .create(true)
         .write(true)
         .truncate(true)
         .open(filename)
@@ -83,46 +95,42 @@ async fn acquire(http: &http::Client, req: &Request) -> Result<()> {
     let mut file = withhold::Writer::new(file);
 
     // Start sending request
-    send_status(&uri, &format!("Connecting to {}", domain));
-    let mut response = http.get(uri).send().await?.error_for_status()?;
+    send_status(uri, &format!("Connecting to {}", domain));
+    let mut response = http.get(url).send().await?.error_for_status()?;
 
     let last_modified = response
         .headers()
         .get("Last-Modified")
-        .and_then(|v| v.to_str().ok());
+        .and_then(|v| v.to_str().ok())
+        .map(String::from);
 
     println!("200 URI Start");
-    if let Some(last_modified) = last_modified {
+    if let Some(last_modified) = &last_modified {
         println!("Last-Modified: {}", truncate_newline(last_modified));
     }
     println!("URI: {}", truncate_newline(uri));
     println!();
 
     while let Some(chunk) = response.chunk().await.transpose() {
-        // receive chunk
-        let chunk = match chunk {
-            Ok(chunk) => chunk,
-            Err(err) => {
-                uri_failure(Some(uri), &format!("Read error: {err:#}"));
-                continue;
-            }
-        };
-
-        // write chunk
-        if let Err(err) = file.write_all(chunk).await {
-            uri_failure(Some(uri), &format!("Write error: {err:#}"));
-            continue;
-        }
+        file.write_all(chunk?).await?;
     }
 
     // TODO: do final verification
-    send_status(&uri, "Verifying download");
-    time::sleep(Duration::from_secs(5)).await; // Simulate delay so we can see if this message shows up
+    if req.needs_verification() {
+        send_status(uri, "Verifying download");
+        time::sleep(Duration::from_secs(5)).await; // Simulate delay so we can see if this message shows up
+    }
 
     // If successfully verified, write final chunk
     file.finalize().await?;
 
     println!("201 URI Done");
+    println!("SHA256-Hash: {}", file.sha256());
+    if let Some(last_modified) = &last_modified {
+        println!("Last-Modified: {}", truncate_newline(last_modified));
+    }
+    println!("Size: {}", file.size());
+    println!("Filename: {}", truncate_newline(filename));
     println!("URI: {}", truncate_newline(uri));
     println!();
 
@@ -142,6 +150,7 @@ pub async fn run(_config: Config) -> Result<()> {
 
     while let Some(req) = Request::read(&mut stdin).await? {
         if req.status.starts_with("600 ") {
+            debug!("Received acquire request: {req:?}");
             // 600 URI Acquire
             if let Err(err) = acquire(&http, &req).await {
                 uri_failure(
