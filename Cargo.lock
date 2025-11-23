@@ -83,12 +83,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
-name = "ar"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d67af77d68a931ecd5cbd8a3b5987d63a1d1d1278f7f6a60ae33db485cdebb69"
-
-[[package]]
 name = "astral-tokio-tar"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1930,7 +1924,6 @@ name = "repro-threshold"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "ar",
  "astral-tokio-tar",
  "async-compression",
  "bytes",
@@ -1951,6 +1944,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "tokio",
+ "tokio-ar",
  "toml",
 ]
 
@@ -2538,6 +2532,15 @@ dependencies = [
  "socket2",
  "tokio-macros",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "tokio-ar"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16d4903505a12623c4f5c2cde7dca3f190c5046dfe023d012cc7e2dd39fd1f80"
+dependencies = [
+ "tokio",
 ]
 
 [[package]]

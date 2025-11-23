@@ -1,9 +1,8 @@
 use crate::errors::*;
 use futures::StreamExt;
-use std::io::Read;
 use std::path::Path;
 use tokio::fs::File;
-use tokio::io::{AsyncBufRead, AsyncRead, AsyncReadExt};
+use tokio::io::{AsyncBufRead, AsyncRead, AsyncReadExt, BufReader};
 
 #[derive(Debug, PartialEq)]
 pub struct Deb {
@@ -40,27 +39,28 @@ impl<R: AsyncBufRead + Unpin> AsyncRead for Decompressor<R> {
     }
 }
 
-fn find_control_tar<R: Read>(reader: R) -> Result<(Vec<u8>, Compression)> {
-    let mut archive = ar::Archive::new(reader);
+async fn extract_control_from_deb<R: AsyncRead + Unpin>(reader: R) -> Result<String> {
+    let mut archive = tokio_ar::Archive::new(reader);
 
-    while let Some(entry) = archive.next_entry() {
-        let mut entry = entry?;
+    while let Some(entry) = archive.next_entry().await {
+        let entry = entry?;
         let Ok(name) = str::from_utf8(entry.header().identifier()) else {
             continue;
         };
 
-        let decompress = match name.strip_prefix("control.tar.") {
+        // Determine compression
+        let compression = match name.strip_prefix("control.tar.") {
             Some("xz") => Compression::Xz,
             Some(extension) => bail!("Found control.tar with unsupported extension: {extension}"),
             None => continue,
         };
 
-        let mut buf = Vec::new();
-        entry
-            .read_to_end(&mut buf)
-            .context("Failed to extract control.tar from .deb")?;
+        // Setup decompression reader
+        let reader = BufReader::new(entry);
+        let decompressor = Decompressor::new(reader, compression);
 
-        return Ok((buf, decompress));
+        // Extract control file from control.tar.*
+        return find_control_file(decompressor).await;
     }
 
     bail!("No control.tar found in .deb")
@@ -96,13 +96,9 @@ pub async fn inspect<P: AsRef<Path>>(path: P) -> Result<Deb> {
     let file = File::open(path)
         .await
         .with_context(|| format!("Failed to open file {path:?}"))?;
-    let file = file.into_std().await;
 
-    let (buf, compression) = find_control_tar(file)?;
-    let mut decompressor = Decompressor::new(&buf[..], compression);
-    let content = find_control_file(&mut decompressor).await?;
-
-    trace!("Control file content:\n{:?}", content);
+    let content = extract_control_from_deb(file).await?;
+    trace!("Control file content: {content:?}");
 
     // now process the buffered data
     let deb822 = deb822_fast::Deb822::from_reader(content.as_bytes())
