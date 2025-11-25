@@ -43,12 +43,12 @@ impl<W: AsyncWrite + Unpin> Writer<W> {
         }
     }
 
-    pub fn sha256(&self) -> String {
+    pub fn sha256(&self) -> Vec<u8> {
         let mut sha256 = self.sha256.clone();
         if let Some(chunk) = &self.withheld {
             sha256.update(chunk);
         }
-        format!("{:x}", sha256.finalize())
+        sha256.finalize().to_vec()
     }
 
     pub async fn finalize(&mut self) -> Result<()> {
@@ -168,7 +168,7 @@ mod tests {
         assert_eq!(writer.size(), data.len() as u64);
         let sha256 = writer.sha256();
         assert_eq!(
-            sha256,
+            data_encoding::HEXLOWER.encode(&sha256),
             "315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3"
         );
         writer.finalize().await?;
@@ -176,7 +176,7 @@ mod tests {
         assert_eq!(writer.size(), data.len() as u64);
         let sha256 = writer.sha256();
         assert_eq!(
-            sha256,
+            data_encoding::HEXLOWER.encode(&sha256),
             "315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3"
         );
 

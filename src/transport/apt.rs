@@ -1,3 +1,4 @@
+use crate::attestation;
 use crate::config::Config;
 use crate::errors::*;
 use crate::http;
@@ -5,10 +6,8 @@ use crate::inspect;
 use crate::withhold;
 use reqwest::Url;
 use std::collections::BTreeMap;
-use std::time::Duration;
 use tokio::fs::File;
 use tokio::io::{self, AsyncBufRead, AsyncBufReadExt, BufReader};
-use tokio::time;
 
 #[derive(Debug, Default)]
 struct Request {
@@ -72,7 +71,7 @@ fn send_status(uri: &str, message: &str) {
     println!();
 }
 
-async fn acquire(http: &http::Client, req: &Request) -> Result<()> {
+async fn acquire(http: &http::Client, config: &Config, req: &Request) -> Result<()> {
     let uri = req.headers.get("URI").context("Missing `URI` header")?;
 
     let filename = req
@@ -117,26 +116,39 @@ async fn acquire(http: &http::Client, req: &Request) -> Result<()> {
         file.write_all(chunk?).await?;
     }
 
-    // TODO: do final verification
+    let sha256 = file.sha256();
+
+    // Verify reproducible builds attestations
     if req.needs_verification() {
         send_status(uri, "Verifying download");
         let mut reader = file.into_reader().await?;
 
+        // Parse deb metadata
         let inspect = inspect::deb::inspect(&mut reader)
             .await
             .context("Failed to parse .deb metadata")?;
-        eprintln!("\n\ndata={inspect:#?}\n\n");
-
         file = reader.into_writer().await?;
 
-        time::sleep(Duration::from_secs(5)).await; // Simulate delay so we can see if this message shows up
+        // Fetch attestations
+        let rebuilders = config.trusted_rebuilders.iter().map(|r| r.url.clone());
+        let attestations = attestation::fetch_remote(http, rebuilders, inspect).await;
+
+        let signing_keys = Vec::new(); // TODO
+        let confirms = attestations.verify(&sha256, &signing_keys);
+        if confirms.len() < config.required_threshold {
+            bail!(
+                "Not enough reproducible builds attestations: only {}/{} required signatures",
+                confirms.len(),
+                config.required_threshold
+            );
+        }
     }
 
     // If successfully verified, write final chunk
     file.finalize().await?;
 
     println!("201 URI Done");
-    println!("SHA256-Hash: {}", file.sha256());
+    println!("SHA256-Hash: {}", data_encoding::HEXLOWER.encode(&sha256));
     if let Some(last_modified) = &last_modified {
         println!("Last-Modified: {}", truncate_newline(last_modified));
     }
@@ -148,7 +160,7 @@ async fn acquire(http: &http::Client, req: &Request) -> Result<()> {
     Ok(())
 }
 
-pub async fn run(_config: Config) -> Result<()> {
+pub async fn run(config: Config) -> Result<()> {
     println!("100 Capabilities");
     println!("Send-URI-Encoded: true");
     // println!("Send-Config: true");
@@ -163,7 +175,7 @@ pub async fn run(_config: Config) -> Result<()> {
         if req.status.starts_with("600 ") {
             debug!("Received acquire request: {req:?}");
             // 600 URI Acquire
-            if let Err(err) = acquire(&http, &req).await {
+            if let Err(err) = acquire(&http, &config, &req).await {
                 uri_failure(
                     req.headers.get("URI").map(|s| s.as_str()),
                     &format!("{err:#}"),

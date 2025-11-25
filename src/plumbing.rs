@@ -5,10 +5,8 @@ use crate::errors::*;
 use crate::http;
 use crate::inspect;
 use crate::rebuilder;
-use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::AsyncSeekExt;
-use tokio::task::JoinSet;
 
 pub async fn run(plumbing: Plumbing) -> Result<()> {
     match plumbing {
@@ -86,9 +84,8 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
                 .await
                 .with_context(|| format!("Failed to open file {path:?}"))?;
 
-            // We do this early/outside of try_join! because it's using blocking IO currently (the `ar` crate)
-            let mut remote_attestations = JoinSet::new();
-            if !rebuilders.is_empty() {
+            // Extract .deb metadata (if needed)
+            let inspect = if !rebuilders.is_empty() {
                 debug!("Inspecting package metadata: {path:?}");
 
                 // TODO: this is currently .deb only
@@ -99,16 +96,10 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
                     .await
                     .with_context(|| format!("Failed to rewind file after inspection: {path:?}"))?;
 
-                let http = http::client();
-                let inspect = Arc::new(inspect);
-                for url in rebuilders {
-                    let http = http.clone();
-                    let inspect = inspect.clone();
-                    remote_attestations.spawn(async move {
-                        http.fetch_attestations_for_pkg(&url, &inspect).await
-                    });
-                }
-            }
+                Some(inspect)
+            } else {
+                None
+            };
 
             // Load all files from the local filesystem and await rebuilder responses
             let (sha256, mut attestations, remote_attestations, signing_keys) = tokio::try_join!(
@@ -119,17 +110,14 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
                 },
                 async { Ok(attestation::load_all_attestations(&attestations).await) },
                 async {
-                    let mut attestations = attestation::Tree::default();
-
-                    while let Some(res) = remote_attestations.join_next().await {
-                        match res {
-                            Ok(Ok(response)) => attestations.merge(response),
-                            Ok(Err(err)) => warn!("Failed to fetch remote attestations: {err:#}"),
-                            Err(err) => warn!("Rebuilder task panicked: {err:#}"),
-                        }
+                    if let Some(inspect) = inspect {
+                        let http = http::client();
+                        let attestations =
+                            attestation::fetch_remote(&http, rebuilders, inspect).await;
+                        Ok(attestations)
+                    } else {
+                        Ok(Default::default())
                     }
-
-                    Ok(attestations)
                 },
                 async { attestation::load_all_signing_keys(&signing_keys).await },
             )?;

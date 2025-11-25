@@ -1,15 +1,18 @@
 use crate::errors::*;
+use crate::http;
+use crate::inspect::deb::Deb;
 use in_toto::{
     crypto::{HashAlgorithm, KeyId, PublicKey, SignatureScheme},
     models::{Metablock, MetadataWrapper},
 };
+use reqwest::Url;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::slice;
 use std::sync::Arc;
-use tokio::fs;
 use tokio::io::{AsyncRead, AsyncReadExt};
+use tokio::{fs, task::JoinSet};
 
 const PEM_PUBLIC_KEY: &str = "PUBLIC KEY";
 
@@ -158,6 +161,32 @@ impl Tree {
 
         confirms
     }
+}
+
+pub async fn fetch_remote<I: IntoIterator<Item = Url>>(
+    http: &http::Client,
+    rebuilders: I,
+    inspect: Deb,
+) -> Tree {
+    let mut tasks = JoinSet::new();
+
+    let inspect = Arc::new(inspect);
+    for url in rebuilders {
+        let http = http.clone();
+        let inspect = inspect.clone();
+        tasks.spawn(async move { http.fetch_attestations_for_pkg(&url, &inspect).await });
+    }
+
+    let mut attestations = Tree::default();
+    while let Some(res) = tasks.join_next().await {
+        match res {
+            Ok(Ok(response)) => attestations.merge(response),
+            Ok(Err(err)) => warn!("Failed to fetch remote attestations: {err:#}"),
+            Err(err) => warn!("Rebuilder task panicked: {err:#}"),
+        }
+    }
+
+    attestations
 }
 
 pub async fn load_all_attestations<I: IntoIterator<Item = P>, P: AsRef<Path>>(paths: I) -> Tree {
