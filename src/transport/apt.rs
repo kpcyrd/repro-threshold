@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::errors::*;
 use crate::http;
+use crate::inspect;
 use crate::withhold;
 use reqwest::Url;
 use std::collections::BTreeMap;
@@ -86,6 +87,7 @@ async fn acquire(http: &http::Client, req: &Request) -> Result<()> {
     // Open file for writing
     let file = File::options()
         .create(true)
+        .read(true)
         .write(true)
         .truncate(true)
         .open(filename)
@@ -118,6 +120,15 @@ async fn acquire(http: &http::Client, req: &Request) -> Result<()> {
     // TODO: do final verification
     if req.needs_verification() {
         send_status(uri, "Verifying download");
+        let mut reader = file.into_reader().await?;
+
+        let inspect = inspect::deb::inspect(&mut reader)
+            .await
+            .context("Failed to parse .deb metadata")?;
+        eprintln!("\n\ndata={inspect:#?}\n\n");
+
+        file = reader.into_writer().await?;
+
         time::sleep(Duration::from_secs(5)).await; // Simulate delay so we can see if this message shows up
     }
 

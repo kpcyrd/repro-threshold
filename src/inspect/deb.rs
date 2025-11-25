@@ -1,7 +1,5 @@
 use crate::errors::*;
 use futures::StreamExt;
-use std::path::Path;
-use tokio::fs::File;
 use tokio::io::{AsyncBufRead, AsyncRead, AsyncReadExt, BufReader};
 
 #[derive(Debug, PartialEq)]
@@ -91,13 +89,8 @@ async fn find_control_file<R: AsyncRead + Unpin>(reader: R) -> Result<String> {
     bail!("No control file found in control.tar")
 }
 
-pub async fn inspect<P: AsRef<Path>>(path: P) -> Result<Deb> {
-    let path = path.as_ref();
-    let file = File::open(path)
-        .await
-        .with_context(|| format!("Failed to open file {path:?}"))?;
-
-    let content = extract_control_from_deb(file).await?;
+pub async fn inspect<R: AsyncRead + Unpin>(reader: R) -> Result<Deb> {
+    let content = extract_control_from_deb(reader).await?;
     trace!("Control file content: {content:?}");
 
     // now process the buffered data
@@ -137,12 +130,14 @@ pub async fn inspect<P: AsRef<Path>>(path: P) -> Result<Deb> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::fs::File;
 
     #[tokio::test]
     async fn test_inspect_deb() {
-        let deb = inspect("test_data/librust-as-slice-dev_0.2.1-1+b2_amd64.deb")
+        let file = File::open("test_data/librust-as-slice-dev_0.2.1-1+b2_amd64.deb")
             .await
             .unwrap();
+        let deb = inspect(file).await.unwrap();
 
         assert_eq!(
             deb,

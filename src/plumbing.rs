@@ -7,6 +7,7 @@ use crate::inspect;
 use crate::rebuilder;
 use std::sync::Arc;
 use tokio::fs::File;
+use tokio::io::AsyncSeekExt;
 use tokio::task::JoinSet;
 
 pub async fn run(plumbing: Plumbing) -> Result<()> {
@@ -80,14 +81,23 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
             threshold,
             file,
         } => {
+            let path = &file;
+            let mut file = File::open(path)
+                .await
+                .with_context(|| format!("Failed to open file {path:?}"))?;
+
             // We do this early/outside of try_join! because it's using blocking IO currently (the `ar` crate)
             let mut remote_attestations = JoinSet::new();
             if !rebuilders.is_empty() {
-                debug!("Inspecting package metadata: {file:?}");
+                debug!("Inspecting package metadata: {path:?}");
+
                 // TODO: this is currently .deb only
-                let inspect = inspect::deb::inspect(&file)
+                let inspect = inspect::deb::inspect(&mut file)
                     .await
-                    .with_context(|| format!("Failed to inspect metadata: {file:?}"))?;
+                    .with_context(|| format!("Failed to inspect metadata: {path:?}"))?;
+                file.rewind()
+                    .await
+                    .with_context(|| format!("Failed to rewind file after inspection: {path:?}"))?;
 
                 let http = http::client();
                 let inspect = Arc::new(inspect);
@@ -103,12 +113,9 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
             // Load all files from the local filesystem and await rebuilder responses
             let (sha256, mut attestations, remote_attestations, signing_keys) = tokio::try_join!(
                 async {
-                    let reader = File::open(&file)
+                    attestation::sha256_file(file)
                         .await
-                        .with_context(|| format!("Failed to open artifact file: {file:?}"))?;
-                    attestation::sha256_file(reader)
-                        .await
-                        .with_context(|| format!("Failed to calculate hash for file: {file:?}"))
+                        .with_context(|| format!("Failed to calculate hash for file: {path:?}"))
                 },
                 async { Ok(attestation::load_all_attestations(&attestations).await) },
                 async {
@@ -147,7 +154,12 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
             }
         }
         Plumbing::InspectDeb { file } => {
-            let data = inspect::deb::inspect(&file).await?;
+            let path = &file;
+            let file = File::open(path)
+                .await
+                .with_context(|| format!("Failed to open file {path:?}"))?;
+
+            let data = inspect::deb::inspect(file).await?;
             println!("data={data:#?}");
         }
         Plumbing::Completions(completions) => {
