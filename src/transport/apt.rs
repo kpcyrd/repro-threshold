@@ -129,18 +129,20 @@ async fn acquire(http: &http::Client, config: &Config, req: &Request) -> Result<
             .context("Failed to parse .deb metadata")?;
         file = reader.into_writer().await?;
 
-        // Fetch attestations
-        let rebuilders = config.trusted_rebuilders.iter().map(|r| r.url.clone());
-        let attestations = attestation::fetch_remote(http, rebuilders, inspect).await;
+        if !config.rules.blindly_allow.contains(&inspect.name) {
+            // Fetch attestations
+            let rebuilders = config.trusted_rebuilders.iter().map(|r| r.url.clone());
+            let attestations = attestation::fetch_remote(http, rebuilders, inspect).await;
 
-        let signing_keys = Vec::new(); // TODO
-        let confirms = attestations.verify(&sha256, &signing_keys);
-        if confirms.len() < config.rules.required_threshold {
-            bail!(
-                "Not enough reproducible builds attestations: only {}/{} required signatures",
-                confirms.len(),
-                config.rules.required_threshold
-            );
+            let signing_keys = Vec::new(); // TODO
+            let confirms = attestations.verify(&sha256, &signing_keys);
+            if confirms.len() < config.rules.required_threshold {
+                bail!(
+                    "Not enough reproducible builds attestations: only {}/{} required signatures",
+                    confirms.len(),
+                    config.rules.required_threshold
+                );
+            }
         }
     }
 
