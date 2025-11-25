@@ -135,11 +135,11 @@ async fn acquire(http: &http::Client, config: &Config, req: &Request) -> Result<
 
         let signing_keys = Vec::new(); // TODO
         let confirms = attestations.verify(&sha256, &signing_keys);
-        if confirms.len() < config.required_threshold {
+        if confirms.len() < config.rules.required_threshold {
             bail!(
                 "Not enough reproducible builds attestations: only {}/{} required signatures",
                 confirms.len(),
-                config.required_threshold
+                config.rules.required_threshold
             );
         }
     }

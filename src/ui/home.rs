@@ -18,7 +18,7 @@ impl App {
             .border_type(BorderType::Rounded)
             .bg(NORMAL_ROW_BG);
 
-        let required_threshold = self.config.required_threshold;
+        let required_threshold = self.config.rules.required_threshold;
         let trusted_rebuilders = self.config.trusted_rebuilders.len();
 
         let items = vec![
@@ -40,7 +40,7 @@ impl App {
             )),
             ListItem::new(format!(
                 " Add/remove packages from 'blindly trust' allow-list ({} entries)",
-                self.config.blindly_allow.len()
+                self.config.rules.blindly_allow.len()
             )),
             ListItem::new(" Quit"),
         ];

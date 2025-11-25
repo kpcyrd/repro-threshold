@@ -136,8 +136,8 @@ impl App {
                     if let Some(View::Home) = self.view
                         && self.home_scroll.selected() == Some(0)
                     {
-                        self.config.required_threshold =
-                            self.config.required_threshold.saturating_add(1);
+                        let threshold = &mut self.config.rules.required_threshold;
+                        *threshold = threshold.saturating_add(1);
                         self.config.save().await?;
                     }
                 }
@@ -145,8 +145,8 @@ impl App {
                     if let Some(View::Home) = self.view
                         && self.home_scroll.selected() == Some(0)
                     {
-                        self.config.required_threshold =
-                            self.config.required_threshold.saturating_sub(1);
+                        let threshold = &mut self.config.rules.required_threshold;
+                        *threshold = threshold.saturating_sub(1);
                         self.config.save().await?;
                     }
                 }

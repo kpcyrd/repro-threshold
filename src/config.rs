@@ -8,22 +8,37 @@ use std::path::PathBuf;
 use tokio::{fs, io};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct Config {
+pub struct Rules {
     /// Number of rebuilder attestations required until we believe them
     #[serde(default)]
     pub required_threshold: usize,
-    /// Rebuilders selected as trusted by the user
-    #[serde(default)]
-    pub trusted_rebuilders: Vec<Rebuilder>,
-    /// Rebuilders added manually by the user
-    #[serde(default)]
-    pub custom_rebuilders: Vec<Rebuilder>,
-    /// Cached list of rebuilders from rebuilderd-community
-    #[serde(default)]
-    pub cached_rebuilderd_community: Vec<Rebuilder>,
     /// Blindly allow these packages, even if nobody could reproduce the binary
     #[serde(default)]
     pub blindly_allow: BTreeSet<String>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct Config {
+    /// Rules for attestation policy
+    #[serde(default)]
+    pub rules: Rules,
+    /// Rebuilders selected as trusted by the user
+    #[serde(
+        default,
+        rename = "trusted_rebuilder",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub trusted_rebuilders: Vec<Rebuilder>,
+    /// Rebuilders added manually by the user
+    #[serde(
+        default,
+        rename = "custom_rebuilder",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub custom_rebuilders: Vec<Rebuilder>,
+    /// Cached list of rebuilders from rebuilderd-community
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cached_rebuilderd_community: Vec<Rebuilder>,
 }
 
 impl Config {
