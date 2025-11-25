@@ -132,6 +132,24 @@ impl App {
                         }
                     }
                 }
+                Some(Event::Plus) => {
+                    if let Some(View::Home) = self.view
+                        && self.home_scroll.selected() == Some(0)
+                    {
+                        self.config.required_threshold =
+                            self.config.required_threshold.saturating_add(1);
+                        self.config.save().await?;
+                    }
+                }
+                Some(Event::Minus) => {
+                    if let Some(View::Home) = self.view
+                        && self.home_scroll.selected() == Some(0)
+                    {
+                        self.config.required_threshold =
+                            self.config.required_threshold.saturating_sub(1);
+                        self.config.save().await?;
+                    }
+                }
                 Some(Event::Esc) => {
                     self.view = Some(View::home());
                 }

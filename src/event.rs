@@ -10,6 +10,8 @@ pub enum Event {
     ScrollLast,
     Reload,
     Toggle,
+    Plus,
+    Minus,
     Enter,
     Esc,
     Quit,
@@ -29,6 +31,8 @@ impl Event {
                 Some(Event::Reload)
             }
             KeyCode::Char(' ') => Some(Event::Toggle),
+            KeyCode::Char('+') => Some(Event::Plus),
+            KeyCode::Char('-') => Some(Event::Minus),
             KeyCode::Enter => Some(Event::Enter),
             KeyCode::Esc => Some(Event::Esc),
             KeyCode::Char('q') => Some(Event::Quit),
