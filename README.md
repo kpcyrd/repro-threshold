@@ -55,7 +55,7 @@ evidence it was built from the given source code.
 The Reproducible Builds stack gives you a trusted path from source code to binary.
 
 It doesn't help if the source code itself is malicious/harmful. The source code
-may still contain security vulnerabilities or [intential
+may still contain security vulnerabilities or [intentional
 backdoors](https://en.wikipedia.org/wiki/XZ_Utils_backdoor). Choose wisely what
 software you put into your computer.
 
