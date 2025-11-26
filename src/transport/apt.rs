@@ -3,6 +3,7 @@ use crate::config::Config;
 use crate::errors::*;
 use crate::http;
 use crate::inspect;
+use crate::signing::DomainTree;
 use crate::withhold;
 use reqwest::Url;
 use std::collections::BTreeMap;
@@ -134,14 +135,10 @@ async fn acquire(http: &http::Client, config: &Config, req: &Request) -> Result<
             let rebuilders = config.trusted_rebuilders.iter().map(|r| r.url.clone());
             let attestations = attestation::fetch_remote(http, rebuilders, inspect).await;
 
-            let signing_keys = config
-                .trusted_rebuilders
-                .iter()
-                .flat_map(|r| r.signing_key())
-                .collect::<Vec<_>>();
-            let confirms = attestations.verify(&sha256, &signing_keys);
-
-            // TODO: ensure each domain only gets one vote, until we don't have per-architecture rebuilders anymore
+            // Ensure each domain only gets one vote, until we don't have per-architecture rebuilders anymore
+            let trusted = DomainTree::from_config(config);
+            let confirms = attestations.verify(&sha256, trusted.signing_keys());
+            let confirms = trusted.group_by_domain(confirms);
 
             if confirms.len() < config.rules.required_threshold {
                 bail!(

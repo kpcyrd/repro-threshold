@@ -61,7 +61,6 @@ impl Rebuilder {
 }
 
 pub async fn fetch_rebuilderd_community(http: &http::Client) -> Result<Vec<Rebuilder>> {
-    // TODO: request timeouts
     let response = http
         .get(COMMUNITY_URL)
         .send()
@@ -69,7 +68,6 @@ pub async fn fetch_rebuilderd_community(http: &http::Client) -> Result<Vec<Rebui
         .error_for_status()?
         .text()
         .await?;
-
     parse(response.as_str())
 }
 
