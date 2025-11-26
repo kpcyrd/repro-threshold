@@ -5,8 +5,6 @@ use reqwest::Url;
 use serde::Deserialize;
 use std::time::Duration;
 
-/*
-// don't give away the name of our crate yet
 const USER_AGENT: &str = concat!(
     env!("CARGO_PKG_NAME"),
     "/",
@@ -15,8 +13,6 @@ const USER_AGENT: &str = concat!(
     env!("CARGO_PKG_REPOSITORY"),
     ")",
 );
-*/
-const USER_AGENT: &str = "reqwest";
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const READ_TIMEOUT: Duration = Duration::from_secs(60);
