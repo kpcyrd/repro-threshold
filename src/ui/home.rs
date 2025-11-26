@@ -23,7 +23,8 @@ impl App {
                     match required_threshold {
                         0 => COLOR_NEGATIVE,
                         1 => COLOR_WARNING,
-                        _ => COLOR_POSITIVE,
+                        num if num <= trusted_rebuilders => COLOR_POSITIVE,
+                        _ => COLOR_NEGATIVE,
                     },
                 ),
                 Span::raw("/"),
