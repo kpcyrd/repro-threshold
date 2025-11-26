@@ -5,6 +5,7 @@ use crate::errors::*;
 use crate::http;
 use crate::inspect;
 use crate::rebuilder;
+use crate::signing;
 use tokio::fs::File;
 use tokio::io::AsyncSeekExt;
 
@@ -121,7 +122,7 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
                         Ok(Default::default())
                     }
                 },
-                async { attestation::load_all_signing_keys(&signing_keys).await },
+                async { signing::load_all_signing_keys(&signing_keys).await },
             )?;
 
             // Merge local and remote attestations

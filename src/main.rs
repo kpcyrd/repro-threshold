@@ -8,6 +8,7 @@ mod http;
 mod inspect;
 mod plumbing;
 mod rebuilder;
+mod signing;
 mod transport;
 mod ui;
 mod withhold;

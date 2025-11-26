@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::errors::*;
 use crate::http;
+use crate::signing;
 use anyhow::Context;
 use in_toto::crypto::PublicKey;
 use reqwest::Url;
@@ -51,7 +52,7 @@ impl Rebuilder {
 
     pub fn signing_key(&self) -> Result<PublicKey> {
         let keyring_bytes = self.signing_keyring.as_bytes();
-        let mut keys = crate::attestation::pem_to_pubkeys(keyring_bytes)?;
+        let mut keys = signing::pem_to_pubkeys(keyring_bytes)?;
 
         // Currently only the first key is considered
         keys.next()

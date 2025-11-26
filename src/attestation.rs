@@ -2,7 +2,7 @@ use crate::errors::*;
 use crate::http;
 use crate::inspect::deb::Deb;
 use in_toto::{
-    crypto::{HashAlgorithm, KeyId, PublicKey, SignatureScheme},
+    crypto::{HashAlgorithm, KeyId, PublicKey},
     models::{Metablock, MetadataWrapper},
 };
 use reqwest::Url;
@@ -13,8 +13,6 @@ use std::slice;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::{fs, task::JoinSet};
-
-const PEM_PUBLIC_KEY: &str = "PUBLIC KEY";
 
 pub async fn sha256_file<R: AsyncRead + Unpin>(mut reader: R) -> Result<Vec<u8>> {
     let mut hasher = Sha256::new();
@@ -29,18 +27,6 @@ pub async fn sha256_file<R: AsyncRead + Unpin>(mut reader: R) -> Result<Vec<u8>>
     }
 
     Ok(hasher.finalize().to_vec())
-}
-
-pub fn pem_to_pubkeys(buf: &[u8]) -> Result<impl Iterator<Item = Result<PublicKey>>> {
-    let pems = pem::parse_many(buf).context("Failed to parse pem file")?;
-    let iter = pems
-        .into_iter()
-        .filter(|pem| pem.tag() == PEM_PUBLIC_KEY)
-        .map(|pem| {
-            PublicKey::from_spki(pem.contents(), SignatureScheme::Ed25519)
-                .context("Failed to parse signing key")
-        });
-    Ok(iter)
 }
 
 pub struct Attestation {
@@ -132,7 +118,11 @@ impl Tree {
         self.map.get(key_id).map(|v| v.as_slice())
     }
 
-    pub fn verify(&self, sha256: &[u8], signing_keys: &[PublicKey]) -> BTreeSet<KeyId> {
+    pub fn verify<'a, I: IntoIterator<Item = &'a PublicKey>>(
+        &self,
+        sha256: &[u8],
+        signing_keys: I,
+    ) -> BTreeSet<KeyId> {
         let mut confirms = BTreeSet::new();
 
         for signing_key in signing_keys {
@@ -205,29 +195,10 @@ pub async fn load_all_attestations<I: IntoIterator<Item = P>, P: AsRef<Path>>(pa
     tree
 }
 
-pub async fn load_all_signing_keys<I: IntoIterator<Item = P>, P: AsRef<Path>>(
-    paths: I,
-) -> Result<Vec<PublicKey>> {
-    let mut list = Vec::new();
-
-    for path in paths {
-        let path = path.as_ref();
-        let signing_key = fs::read(&path)
-            .await
-            .with_context(|| format!("Failed to read signing keys: {path:?}"))?;
-
-        let signing_keys = pem_to_pubkeys(&signing_key)
-            .with_context(|| format!("Failed to parse signing keys: {path:?}"))?;
-
-        list.extend(signing_keys.flatten());
-    }
-
-    Ok(list)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::signing;
     use tokio::fs::File;
 
     #[tokio::test]
@@ -242,28 +213,14 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_parse_signing_key() {
-        let pem_data = include_bytes!("../test_data/reproducible-archlinux.pub");
-        let keys = pem_to_pubkeys(pem_data)
-            .unwrap()
-            .map(|key| key.map(|k| k.key_id().to_owned()))
-            .collect::<Result<Vec<_>>>()
-            .unwrap();
-        assert_eq!(
-            keys,
-            &[
-                "1ae6d32cb5bb8a98312106de28e50af7e09a9b294d51df459537908ac1288b8f"
-                    .parse()
-                    .unwrap()
-            ]
-        );
-    }
-
     #[tokio::test]
     async fn test_verify_attestation_success() {
         let pem_data = include_bytes!("../test_data/reproducible-archlinux.pub");
-        let key = pem_to_pubkeys(pem_data).unwrap().next().unwrap().unwrap();
+        let key = signing::pem_to_pubkeys(pem_data)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
 
         let file = File::open("test_data/filesystem-2025.10.12-1-any.pkg.tar.zst")
             .await
@@ -277,7 +234,11 @@ mod tests {
     #[tokio::test]
     async fn test_verify_attestation_wrong_file() {
         let pem_data = include_bytes!("../test_data/reproducible-archlinux.pub");
-        let key = pem_to_pubkeys(pem_data).unwrap().next().unwrap().unwrap();
+        let key = signing::pem_to_pubkeys(pem_data)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
 
         let file = File::open("Cargo.lock").await.unwrap();
 
@@ -291,7 +252,11 @@ mod tests {
     #[tokio::test]
     async fn test_verify_attestation_invalid_signature() {
         let pem_data = include_bytes!("../test_data/reproducible-archlinux.pub");
-        let key = pem_to_pubkeys(pem_data).unwrap().next().unwrap().unwrap();
+        let key = signing::pem_to_pubkeys(pem_data)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
 
         let file = File::open("test_data/filesystem-2025.10.12-1-any.pkg.tar.zst")
             .await
