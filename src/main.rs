@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
     match args.subcommand {
         None if is_apt_transport_multicall() => transport::run(args::Transport::Apt).await,
         None => {
-            let config = Config::load().await?;
+            let config = Config::load_writable().await?;
 
             let terminal = ratatui::init();
             let result = App::new(config).run(terminal).await;

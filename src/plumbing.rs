@@ -19,7 +19,7 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
             }
         }
         Plumbing::AddRebuilder { url, name } => {
-            let mut config = Config::load().await?;
+            let mut config = Config::load_writable().await?;
 
             if let Some(rebuilder) = config.trusted_rebuilders.iter_mut().find(|r| r.url == url) {
                 // we track selected rebuilders as copy in case they get deleted from e.g. the rebuilderd-community list
@@ -52,7 +52,7 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
             config.save().await?;
         }
         Plumbing::RemoveRebuilder { url } => {
-            let mut config = Config::load().await?;
+            let mut config = Config::load_writable().await?;
 
             config.trusted_rebuilders.retain(|r| r.url != url);
             config.custom_rebuilders.retain(|r| r.url != url);
@@ -76,12 +76,12 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
             }
         }
         Plumbing::AddBlindlyTrust { pkg } => {
-            let mut config = Config::load().await?;
+            let mut config = Config::load_writable().await?;
             config.rules.blindly_trust.insert(pkg);
             config.save().await?;
         }
         Plumbing::RemoveBlindlyTrust { pkg } => {
-            let mut config = Config::load().await?;
+            let mut config = Config::load_writable().await?;
             config.rules.blindly_trust.remove(&pkg);
             config.save().await?;
         }

@@ -4,8 +4,10 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio::{fs, io};
+
+const PATH: &str = "/etc/repro-threshold.conf";
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Rules {
@@ -46,16 +48,39 @@ impl Config {
         Default::default()
     }
 
-    fn path() -> Result<PathBuf> {
-        let path = dirs::data_local_dir()
-            .map(|path| path.join("repro-threshold").join("config.toml"))
-            .context("Failed to determine config path")?;
-        Ok(path)
+    fn path_override() -> Option<PathBuf> {
+        std::env::var_os("REPRO_THRESHOLD_CONFIG").map(PathBuf::from)
+    }
+
+    fn path() -> PathBuf {
+        Self::path_override().unwrap_or_else(|| PathBuf::from(PATH))
+    }
+
+    async fn path_writable() -> Result<PathBuf> {
+        if let Some(path) = Self::path_override() {
+            Ok(path)
+        } else {
+            match fs::read_link(PATH).await {
+                Ok(path) => {
+                    if path.is_absolute() {
+                        Ok(path)
+                    } else {
+                        let parent = Path::new(PATH).parent()
+                            .with_context(|| format!("Failed to get parent directory of config path: {PATH:?}"))?;
+                        Ok(parent.join(path))
+                    }
+                },
+                Err(err) if err.kind() == io::ErrorKind::NotFound => {
+                    bail!("The system isn't setup for interactive configuration, symlink does not exist: {PATH:?}")
+                },
+                Err(err) => Err(Error::from(err)
+                    .context(format!("Can't resolve symlink, system may not be setup for interactive configuration: {PATH:?}"))),
+            }
+        }
     }
 
     // XXX: these are provisory, replace with more robust implementation later
-    pub async fn load() -> Result<Self> {
-        let path = Self::path()?;
+    async fn load_file(path: &Path) -> Result<Self> {
         let config = match fs::read_to_string(&path).await {
             Ok(content) => toml::from_str(&content)
                 .with_context(|| format!("Failed to parse config file: {path:?}"))?,
@@ -69,9 +94,19 @@ impl Config {
         Ok(config)
     }
 
+    pub async fn load() -> Result<Self> {
+        let path = Self::path();
+        Self::load_file(&path).await
+    }
+
+    pub async fn load_writable() -> Result<Self> {
+        let path = Self::path_writable().await?;
+        Self::load_file(&path).await
+    }
+
     // XXX: these are provisory, replace with more robust implementation later
     pub async fn save(&self) -> Result<()> {
-        let path = Self::path()?;
+        let path = Self::path_writable().await?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
                 .await
