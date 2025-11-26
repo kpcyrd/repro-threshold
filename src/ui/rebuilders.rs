@@ -21,7 +21,7 @@ impl App {
         let list = List::new(items)
             .block(block)
             .highlight_style(SELECTED_STYLE)
-            .highlight_symbol(">")
+            .highlight_symbol("> ")
             .highlight_spacing(HighlightSpacing::Always);
 
         StatefulWidget::render(&list, area, buf, self.scroll());
@@ -46,9 +46,9 @@ impl From<&Selectable<Rebuilder>> for ListItem<'_> {
     fn from(value: &Selectable<Rebuilder>) -> Self {
         let mut line = Line::from_iter([
             if value.active {
-                Span::styled(" ✓", COLOR_POSITIVE)
+                Span::styled("✓", COLOR_POSITIVE)
             } else {
-                Span::raw(" ☐")
+                Span::raw("☐")
             },
             Span::raw(format!(
                 " {} - {}",

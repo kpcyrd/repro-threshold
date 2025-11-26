@@ -7,6 +7,7 @@ use ratatui::{
         ScrollbarState,
     },
 };
+use std::iter;
 
 impl App {
     pub fn render_blindly_trust(&mut self, area: Rect, buf: &mut Buffer) {
@@ -15,18 +16,23 @@ impl App {
             .title_alignment(Alignment::Center)
             .border_type(BorderType::Rounded);
 
-        let items = self
-            .config
-            .rules
-            .blindly_allow
-            .iter()
-            .map(|s| ListItem::from(format!(" Always blindly allow: {s}")))
+        let items = iter::once(ListItem::from(Span::styled(
+                "Use `repro-threshold plumbing [add-blindly-allow|remove-blindly-allow] <package>` to update",
+                Style::new().add_modifier(Modifier::ITALIC)
+            )))
+            .chain(
+                self.config
+                    .rules
+                    .blindly_allow
+                    .iter()
+                    .map(|s| ListItem::from(format!("Always blindly allow: {s}"))),
+            )
             .collect::<Vec<_>>();
 
         let list = List::new(items)
             .block(block)
             .highlight_style(SELECTED_STYLE)
-            .highlight_symbol(">")
+            .highlight_symbol("> ")
             .highlight_spacing(HighlightSpacing::Always);
 
         StatefulWidget::render(&list, area, buf, self.scroll());
