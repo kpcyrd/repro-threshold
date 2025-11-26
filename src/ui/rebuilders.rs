@@ -1,22 +1,26 @@
 use crate::app::App;
 use crate::rebuilder::{Rebuilder, Selectable};
-use crate::ui::{COLOR_POSITIVE, SELECTED_STYLE};
+use crate::ui::{self, COLOR_POSITIVE, SELECTED_STYLE};
 use ratatui::{
     prelude::*,
-    widgets::{
-        Block, BorderType, HighlightSpacing, List, ListItem, Scrollbar, ScrollbarOrientation,
-        ScrollbarState,
-    },
+    widgets::{HighlightSpacing, List, ListItem, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 
 impl App {
     pub fn render_rebuilders(&mut self, area: Rect, buf: &mut Buffer) {
-        let block = Block::bordered()
-            .title("repro-threshold")
-            .title_alignment(Alignment::Center)
-            .border_type(BorderType::Rounded);
+        let block = ui::container();
 
-        let items: Vec<ListItem> = self.rebuilders.iter().map(ListItem::from).collect();
+        let items = if self.rebuilders.is_empty() {
+            vec![ListItem::new(Span::styled(
+                "No rebuilders configured, press ctrl-R to load community set, or run `repro-threshold plumbing add-rebuilder <url>` to add one",
+                Style::new().italic(),
+            ))]
+        } else {
+            self.rebuilders
+                .iter()
+                .map(ListItem::from)
+                .collect::<Vec<_>>()
+        };
 
         let list = List::new(items)
             .block(block)

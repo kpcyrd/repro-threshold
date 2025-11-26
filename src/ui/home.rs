@@ -1,16 +1,13 @@
 use crate::app::App;
-use crate::ui::{COLOR_NEGATIVE, COLOR_POSITIVE, COLOR_WARNING, SELECTED_STYLE};
+use crate::ui::{self, COLOR_NEGATIVE, COLOR_POSITIVE, COLOR_WARNING, SELECTED_STYLE};
 use ratatui::{
     prelude::*,
-    widgets::{Block, BorderType, HighlightSpacing, List, ListItem},
+    widgets::{HighlightSpacing, List, ListItem},
 };
 
 impl App {
     pub fn render_home(&mut self, area: Rect, buf: &mut Buffer) {
-        let block = Block::bordered()
-            .title("repro-threshold")
-            .title_alignment(Alignment::Center)
-            .border_type(BorderType::Rounded);
+        let block = ui::container();
 
         let required_threshold = self.config.rules.required_threshold;
         let trusted_rebuilders = self.config.trusted_rebuilders.len();

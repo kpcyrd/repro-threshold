@@ -6,13 +6,28 @@ use crate::app::App;
 use ratatui::{
     layout::Flex,
     prelude::*,
-    widgets::{Block, Clear},
+    widgets::{Block, BorderType, Clear},
 };
 
 const SELECTED_STYLE: Style = Style::new().bg(Color::Reset).add_modifier(Modifier::BOLD);
 const COLOR_POSITIVE: Color = Color::Green;
 const COLOR_WARNING: Color = Color::Yellow;
 const COLOR_NEGATIVE: Color = Color::Red;
+
+const TITLE: &str = concat!(
+    "repro-threshold ",
+    env!("CARGO_PKG_VERSION"),
+    " (experimental)"
+);
+const TITLE_STYLE: Style = Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD);
+
+fn container() -> Block<'static> {
+    Block::bordered()
+        .title(TITLE)
+        .title_alignment(Alignment::Center)
+        .title_style(TITLE_STYLE)
+        .border_type(BorderType::Rounded)
+}
 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {

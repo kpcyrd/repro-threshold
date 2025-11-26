@@ -1,24 +1,18 @@
 use crate::app::App;
-use crate::ui::SELECTED_STYLE;
+use crate::ui::{self, SELECTED_STYLE};
 use ratatui::{
     prelude::*,
-    widgets::{
-        Block, BorderType, HighlightSpacing, List, ListItem, Scrollbar, ScrollbarOrientation,
-        ScrollbarState,
-    },
+    widgets::{HighlightSpacing, List, ListItem, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 use std::iter;
 
 impl App {
     pub fn render_blindly_trust(&mut self, area: Rect, buf: &mut Buffer) {
-        let block = Block::bordered()
-            .title("repro-threshold")
-            .title_alignment(Alignment::Center)
-            .border_type(BorderType::Rounded);
+        let block = ui::container();
 
         let items = iter::once(ListItem::from(Span::styled(
                 "Use `repro-threshold plumbing [add-blindly-trust|remove-blindly-trust] <package>` to update",
-                Style::new().add_modifier(Modifier::ITALIC)
+                Style::new().italic()
             )))
             .chain(
                 self.config
