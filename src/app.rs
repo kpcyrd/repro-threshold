@@ -12,6 +12,7 @@ use tokio::task::JoinSet;
 pub enum View {
     Home,
     Rebuilders { scroll: ListState },
+    BlindlyAllow { scroll: ListState },
 }
 
 impl View {
@@ -23,6 +24,12 @@ impl View {
         let mut scroll = ListState::default();
         scroll.select_first();
         View::Rebuilders { scroll }
+    }
+
+    pub fn blindly_allow() -> Self {
+        let mut scroll = ListState::default();
+        scroll.select_first();
+        View::BlindlyAllow { scroll }
     }
 }
 
@@ -54,6 +61,7 @@ impl App {
     pub fn scroll(&mut self) -> &mut ListState {
         match &mut self.view {
             Some(View::Rebuilders { scroll }) => scroll,
+            Some(View::BlindlyAllow { scroll }) => scroll,
             _ => &mut self.home_scroll,
         }
     }
@@ -167,7 +175,9 @@ impl App {
                                 self.view = Some(View::rebuilders());
                                 self.rebuilders = self.config.resolve_rebuilder_view();
                             }
-                            Some(2) => (), // TODO
+                            Some(2) => {
+                                self.view = Some(View::blindly_allow());
+                            }
                             Some(3) => self.view = None,
                             _ => {}
                         }

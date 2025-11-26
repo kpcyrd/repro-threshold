@@ -1,3 +1,4 @@
+mod blindly;
 mod home;
 mod rebuilders;
 
@@ -18,6 +19,7 @@ impl Widget for &mut App {
         match self.view {
             Some(crate::app::View::Home) => self.render_home(area, buf),
             Some(crate::app::View::Rebuilders { .. }) => self.render_rebuilders(area, buf),
+            Some(crate::app::View::BlindlyAllow { .. }) => self.render_blindly_trust(area, buf),
             None => {}
         }
 

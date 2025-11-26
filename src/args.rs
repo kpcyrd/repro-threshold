@@ -72,6 +72,7 @@ pub enum Plumbing {
         #[arg(long = "name")]
         name: Option<String>,
     },
+    /// Remove a rebuilder from the trusted set
     RemoveRebuilder {
         /// The rebuilder URL
         url: Url,
