@@ -18,6 +18,20 @@ use crate::config::Config;
 use crate::errors::*;
 use clap::Parser;
 use env_logger::Env;
+use std::env;
+
+fn is_apt_transport_multicall() -> bool {
+    let Some(bin) = env::args_os().next() else {
+        return false;
+    };
+    let Ok(bin) = bin.into_string() else {
+        return false;
+    };
+    let Some(bin) = bin.rsplit('/').next() else {
+        return false;
+    };
+    bin.starts_with("reproduced+")
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -33,6 +47,7 @@ async fn main() -> Result<()> {
     env_logger::init_from_env(Env::default().default_filter_or(log_level));
 
     match args.subcommand {
+        None if is_apt_transport_multicall() => transport::run(args::Transport::Apt).await,
         None => {
             let config = Config::load().await?;
 
