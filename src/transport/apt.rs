@@ -130,7 +130,7 @@ async fn acquire(http: &http::Client, config: &Config, req: &Request) -> Result<
             .context("Failed to parse .deb metadata")?;
         file = reader.into_writer().await?;
 
-        if !config.rules.blindly_allow.contains(&inspect.name) {
+        if !config.rules.blindly_trust.contains(&inspect.name) {
             // Fetch attestations
             let rebuilders = config.trusted_rebuilders.iter().map(|r| r.url.clone());
             let attestations = attestation::fetch_remote(http, rebuilders, inspect).await;

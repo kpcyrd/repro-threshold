@@ -75,6 +75,22 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
                 );
             }
         }
+        Plumbing::AddBlindlyTrust { pkg } => {
+            let mut config = Config::load().await?;
+            config.rules.blindly_trust.insert(pkg);
+            config.save().await?;
+        }
+        Plumbing::RemoveBlindlyTrust { pkg } => {
+            let mut config = Config::load().await?;
+            config.rules.blindly_trust.remove(&pkg);
+            config.save().await?;
+        }
+        Plumbing::ListBlindlyTrust => {
+            let config = Config::load().await?;
+            for pkg in &config.rules.blindly_trust {
+                println!("{pkg}");
+            }
+        }
         Plumbing::Verify {
             signing_keys,
             attestations,

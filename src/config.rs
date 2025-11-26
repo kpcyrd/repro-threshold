@@ -14,7 +14,7 @@ pub struct Rules {
     pub required_threshold: usize,
     /// Blindly allow these packages, even if nobody could reproduce the binary
     #[serde(default)]
-    pub blindly_allow: BTreeSet<String>,
+    pub blindly_trust: BTreeSet<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]

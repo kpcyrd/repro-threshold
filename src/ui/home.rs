@@ -34,8 +34,8 @@ impl App {
                 "Configure trusted rebuilders ({trusted_rebuilders} selected)"
             )),
             ListItem::new(format!(
-                "Add/remove packages from 'blindly trust' allow-list ({} entries)",
-                self.config.rules.blindly_allow.len()
+                "Add/remove packages from 'blindly-trust' set ({} entries)",
+                self.config.rules.blindly_trust.len()
             )),
             ListItem::new("Quit"),
         ];

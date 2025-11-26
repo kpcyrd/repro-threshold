@@ -54,9 +54,9 @@ pub struct TransportOptions {
     /// Number of required confirms to accept a package as reproduced
     #[arg(long)]
     pub required_confirms: Option<usize>,
-    /// Blindly allow these packages, even if nobody could reproduce the binary
+    /// Blindly trust these packages, even if nobody could reproduce the binary
     #[arg(long)]
-    pub blindly_allow: Vec<String>,
+    pub blindly_trust: Vec<String>,
 }
 
 /// Low-level commands and utilities
@@ -83,6 +83,18 @@ pub enum Plumbing {
         #[arg(short = 'a', long = "all")]
         all: bool,
     },
+    /// Add a package to blindly-trust set
+    AddBlindlyTrust {
+        /// Package name
+        pkg: String,
+    },
+    /// Remove a package from blindly-trust set
+    RemoveBlindlyTrust {
+        /// Package name
+        pkg: String,
+    },
+    /// List packages in blindly-trust set
+    ListBlindlyTrust,
     /// Authenticate a package through rebuilder attestations
     Verify {
         #[arg(short = 'S', long = "signing-key")]

@@ -17,15 +17,15 @@ impl App {
             .border_type(BorderType::Rounded);
 
         let items = iter::once(ListItem::from(Span::styled(
-                "Use `repro-threshold plumbing [add-blindly-allow|remove-blindly-allow] <package>` to update",
+                "Use `repro-threshold plumbing [add-blindly-trust|remove-blindly-trust] <package>` to update",
                 Style::new().add_modifier(Modifier::ITALIC)
             )))
             .chain(
                 self.config
                     .rules
-                    .blindly_allow
+                    .blindly_trust
                     .iter()
-                    .map(|s| ListItem::from(format!("Always blindly allow: {s}"))),
+                    .map(|s| ListItem::from(format!("Always blindly trust: {s}"))),
             )
             .collect::<Vec<_>>();
 
