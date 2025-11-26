@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::errors::*;
 use crate::http;
 use anyhow::Context;
+use in_toto::crypto::PublicKey;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -31,6 +32,8 @@ pub struct Rebuilder {
     pub distributions: Vec<String>,
     pub country: Option<String>,
     pub contact: Option<String>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub signing_keyring: String,
 }
 
 impl Rebuilder {
@@ -39,11 +42,25 @@ impl Rebuilder {
             self.name = name;
         }
     }
+
+    pub async fn refresh_signing_keyring(&mut self, http: &http::Client) -> Result<()> {
+        let keyring = http.fetch_signing_keyring(&self.url).await?;
+        self.signing_keyring = keyring;
+        Ok(())
+    }
+
+    pub fn signing_key(&self) -> Result<PublicKey> {
+        let keyring_bytes = self.signing_keyring.as_bytes();
+        let mut keys = crate::attestation::pem_to_pubkeys(keyring_bytes)?;
+
+        // Currently only the first key is considered
+        keys.next()
+            .context("No public keys found in signing keyring")?
+    }
 }
 
-pub async fn fetch_rebuilderd_community() -> Result<Vec<Rebuilder>> {
+pub async fn fetch_rebuilderd_community(http: &http::Client) -> Result<Vec<Rebuilder>> {
     // TODO: request timeouts
-    let http = http::client();
     let response = http
         .get(COMMUNITY_URL)
         .send()
@@ -122,6 +139,7 @@ distributions = ["archlinux", "debian"]
                     distributions: vec!["archlinux".to_string()],
                     country: Some("DEU".to_string()),
                     contact: Some("Hello!".to_string()),
+                    signing_keyring: String::new(),
                 },
                 Rebuilder {
                     name: "Rebuilder Two".to_string(),
@@ -129,6 +147,7 @@ distributions = ["archlinux", "debian"]
                     distributions: vec!["archlinux".to_string(), "debian".to_string()],
                     country: None,
                     contact: None,
+                    signing_keyring: String::new(),
                 },
             ]
         );

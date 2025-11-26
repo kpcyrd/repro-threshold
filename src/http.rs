@@ -41,6 +41,36 @@ impl Client {
         self.client.get(url)
     }
 
+    pub async fn fetch_signing_keyring(&self, url: &Url) -> Result<String> {
+        let (mut url, base_url) = (url.clone(), url);
+
+        url.path_segments_mut()
+            .map_err(|_| anyhow!("Failed to get path from url: {base_url}"))?
+            .pop_if_empty()
+            .push("api")
+            .push("v1")
+            .push("meta")
+            .push("public-keys");
+
+        debug!("Running search query on rebuilder: {url}");
+        let response = self
+            .get(url.clone())
+            .send()
+            .await
+            .with_context(|| format!("Failed to fetch url: {url}"))?
+            .error_for_status()
+            .with_context(|| format!("Failed to fetch url: {url}"))?
+            .json::<PublicKeys>()
+            .await
+            .with_context(|| format!("Failed to fetch url: {url}"))?;
+
+        response
+            .current
+            .into_iter()
+            .next()
+            .with_context(|| format!("No public keys found at url: {url}"))
+    }
+
     pub async fn fetch_attestations_for_pkg(
         &self,
         url: &Url,
@@ -61,19 +91,16 @@ impl Client {
             .append_pair("architecture", &inspect.architecture);
 
         debug!("Running search query on rebuilder: {url}");
-        let response = self
+        let search = self
             .get(url.clone())
             .send()
             .await
             .with_context(|| format!("Failed to fetch url: {url}"))?
             .error_for_status()
             .with_context(|| format!("Failed to fetch url: {url}"))?
-            .text()
+            .json::<Search>()
             .await
             .with_context(|| format!("Failed to fetch url: {url}"))?;
-
-        let search = serde_json::from_str::<Search>(&response)
-            .with_context(|| format!("Failed to parse json response: {url}"))?;
         trace!("Rebuilder search response: {search:#?}");
 
         let mut attestations = attestation::Tree::default();
@@ -128,4 +155,9 @@ struct Search {
 struct SearchRecord {
     build_id: Option<u64>,
     artifact_id: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PublicKeys {
+    current: Vec<String>,
 }

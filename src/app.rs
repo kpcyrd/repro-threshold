@@ -1,9 +1,12 @@
 use crate::config::Config;
 use crate::errors::*;
 use crate::event::Event;
+use crate::http;
 use crate::rebuilder::{self, Rebuilder, Selectable};
 use crossterm::event::EventStream;
 use ratatui::{DefaultTerminal, widgets::ListState};
+use std::iter;
+use tokio::task::JoinSet;
 
 #[derive(Debug)]
 pub enum View {
@@ -94,8 +97,46 @@ impl App {
                 }
                 Some(Event::Reload) => {
                     if let Some(View::Rebuilders { .. }) = self.view {
-                        let list = rebuilder::fetch_rebuilderd_community().await?;
+                        let http = http::client();
+
+                        let list = rebuilder::fetch_rebuilderd_community(&http).await?;
                         self.config.cached_rebuilderd_community = list;
+                        self.config.save().await?;
+
+                        let mut tasks = JoinSet::new();
+                        for rebuilder in self
+                            .config
+                            .custom_rebuilders
+                            .iter()
+                            .chain(&self.config.cached_rebuilderd_community)
+                        {
+                            let http = http.clone();
+                            let url = rebuilder.url.clone();
+                            tasks.spawn(async move {
+                                let keyring = http.fetch_signing_keyring(&url).await;
+                                (url, keyring)
+                            });
+                        }
+
+                        while let Some((url, keyring)) = tasks.join_next().await.transpose()? {
+                            let keyring = match keyring {
+                                Ok(keyring) => keyring,
+                                Err(_err) => {
+                                    // Can't render errors in TUI apps like this
+                                    // warn!("Failed to fetch signing keyring for {}: {:#}", url, err);
+                                    continue;
+                                }
+                            };
+
+                            for rebuilder in iter::empty()
+                                .chain(&mut self.config.custom_rebuilders)
+                                .chain(&mut self.config.cached_rebuilderd_community)
+                                .chain(&mut self.config.trusted_rebuilders)
+                                .filter(|r| r.url == url)
+                            {
+                                rebuilder.signing_keyring = keyring.clone();
+                            }
+                        }
                         self.config.save().await?;
 
                         self.rebuilders = self.config.resolve_rebuilder_view();

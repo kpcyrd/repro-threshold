@@ -68,6 +68,10 @@ impl From<&Selectable<Rebuilder>> for ListItem<'_> {
             line.push_span(Span::raw("]"));
         }
 
+        if let Ok(key) = value.item.signing_key() {
+            line.push_span(Span::raw(format!(" - {:?}", key.key_id())));
+        }
+
         ListItem::new(line)
     }
 }

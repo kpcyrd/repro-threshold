@@ -11,7 +11,8 @@ use tokio::io::AsyncSeekExt;
 pub async fn run(plumbing: Plumbing) -> Result<()> {
     match plumbing {
         Plumbing::FetchRebuilderdCommunity => {
-            for rebuilder in rebuilder::fetch_rebuilderd_community().await? {
+            let http = http::client();
+            for rebuilder in rebuilder::fetch_rebuilderd_community(&http).await? {
                 let json = serde_json::to_string_pretty(&rebuilder)?;
                 println!("{}", json);
             }
@@ -42,6 +43,7 @@ pub async fn run(plumbing: Plumbing) -> Result<()> {
                     distributions: vec![],
                     country: None,
                     contact: None,
+                    signing_keyring: String::new(),
                 };
                 config.custom_rebuilders.push(rebuilder);
             }

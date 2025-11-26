@@ -134,8 +134,15 @@ async fn acquire(http: &http::Client, config: &Config, req: &Request) -> Result<
             let rebuilders = config.trusted_rebuilders.iter().map(|r| r.url.clone());
             let attestations = attestation::fetch_remote(http, rebuilders, inspect).await;
 
-            let signing_keys = Vec::new(); // TODO
+            let signing_keys = config
+                .trusted_rebuilders
+                .iter()
+                .flat_map(|r| r.signing_key())
+                .collect::<Vec<_>>();
             let confirms = attestations.verify(&sha256, &signing_keys);
+
+            // TODO: ensure each domain only gets one vote, until we don't have per-architecture rebuilders anymore
+
             if confirms.len() < config.rules.required_threshold {
                 bail!(
                     "Not enough reproducible builds attestations: only {}/{} required signatures",
