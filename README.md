@@ -2,6 +2,8 @@
 
 Threshold-based Reproducible Builds pluggable transport using your trusted rebuilders.
 
+![](.github/assets/screenshot-home.png)
+
 Run `repro-threshold` with no arguments to start a
 [`ratatui`](https://github.com/ratatui/ratatui) based configuration interface.
 
@@ -15,6 +17,8 @@ Run `repro-threshold` with no arguments to start a
 - With `repro-threshold` you can enforce a policy to only install packages reproduced by multiple groups you trust
 
 ## Who to trust?
+
+![](.github/assets/screenshot-rebuilders.png)
 
 Who you trust to do this verification is a very personal choice and there's no
 obvious right or wrong. This is why `repro-threshold` let's you configure this
@@ -90,6 +94,8 @@ Components: main
 Architectures: amd64
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 ```
+
+![](.github/assets/screenshot-apt.png)
 
 ## License
 
