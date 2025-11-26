@@ -31,8 +31,8 @@ impl Event {
                 Some(Event::Reload)
             }
             KeyCode::Char(' ') => Some(Event::Toggle),
-            KeyCode::Char('+') => Some(Event::Plus),
-            KeyCode::Char('-') => Some(Event::Minus),
+            KeyCode::Char('+') | KeyCode::Right => Some(Event::Plus),
+            KeyCode::Char('-') | KeyCode::Left => Some(Event::Minus),
             KeyCode::Enter => Some(Event::Enter),
             KeyCode::Esc => Some(Event::Esc),
             KeyCode::Char('q') => Some(Event::Quit),
