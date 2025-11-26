@@ -1,6 +1,10 @@
 [package]
 name = "repro-threshold"
 version = "0.1.0"
+description = "Threshold-based reproducible builds client using your trusted rebuilders"
+authors = ["kpcyrd <git@rxv.cc>"]
+license = "Apache-2.0 OR MIT-0"
+repository = "https://github.com/kpcyrd/repro-threshold"
 edition = "2024"
 
 [dependencies]

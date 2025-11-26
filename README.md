@@ -1,3 +1,7 @@
+# repro-threshold
+
+Threshold-based reproducible builds client using your trusted rebuilders
+
 ## Integration: alpm
 
 ```
@@ -18,3 +22,6 @@ Architectures: amd64
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 ```
 
+## License
+
+`Apache-2.0 OR MIT-0`
