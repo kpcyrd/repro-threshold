@@ -5,15 +5,13 @@ use crate::app::App;
 use ratatui::{
     layout::Flex,
     prelude::*,
-    style::palette::tailwind::{GREEN, SLATE},
     widgets::{Block, Clear},
 };
 
-const NORMAL_ROW_BG: Color = SLATE.c950;
-const ALT_ROW_BG_COLOR: Color = SLATE.c900;
-const SELECTED_STYLE: Style = Style::new().bg(SLATE.c800).add_modifier(Modifier::BOLD);
-const TEXT_FG_COLOR: Color = SLATE.c200;
-const COMPLETED_TEXT_FG_COLOR: Color = GREEN.c500;
+const SELECTED_STYLE: Style = Style::new().bg(Color::Reset).add_modifier(Modifier::BOLD);
+const COLOR_POSITIVE: Color = Color::Green;
+const COLOR_WARNING: Color = Color::Yellow;
+const COLOR_NEGATIVE: Color = Color::Red;
 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {

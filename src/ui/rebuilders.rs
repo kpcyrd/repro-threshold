@@ -1,8 +1,6 @@
 use crate::app::App;
 use crate::rebuilder::{Rebuilder, Selectable};
-use crate::ui::{
-    ALT_ROW_BG_COLOR, COMPLETED_TEXT_FG_COLOR, NORMAL_ROW_BG, SELECTED_STYLE, TEXT_FG_COLOR,
-};
+use crate::ui::{COLOR_POSITIVE, SELECTED_STYLE};
 use ratatui::{
     prelude::*,
     widgets::{
@@ -16,18 +14,9 @@ impl App {
         let block = Block::bordered()
             .title("repro-threshold")
             .title_alignment(Alignment::Center)
-            .border_type(BorderType::Rounded)
-            .bg(NORMAL_ROW_BG);
+            .border_type(BorderType::Rounded);
 
-        let items: Vec<ListItem> = self
-            .rebuilders
-            .iter()
-            .enumerate()
-            .map(|(i, rebuilder)| {
-                let color = alternate_colors(i);
-                ListItem::from(rebuilder).bg(color)
-            })
-            .collect();
+        let items: Vec<ListItem> = self.rebuilders.iter().map(ListItem::from).collect();
 
         let list = List::new(items)
             .block(block)
@@ -53,24 +42,31 @@ impl App {
     }
 }
 
-const fn alternate_colors(i: usize) -> Color {
-    if i.is_multiple_of(2) {
-        NORMAL_ROW_BG
-    } else {
-        ALT_ROW_BG_COLOR
-    }
-}
-
 impl From<&Selectable<Rebuilder>> for ListItem<'_> {
     fn from(value: &Selectable<Rebuilder>) -> Self {
-        let line = Line::from_iter([
+        let mut line = Line::from_iter([
             if value.active {
-                Span::styled(" ✓", COMPLETED_TEXT_FG_COLOR)
+                Span::styled(" ✓", COLOR_POSITIVE)
             } else {
-                Span::styled(" ☐", TEXT_FG_COLOR)
+                Span::raw(" ☐")
             },
-            Span::raw(format!(" {:?}", value.item)),
+            Span::raw(format!(
+                " {} - {}",
+                value.item.name.escape_default(),
+                value.item.url
+            )),
         ]);
+
+        if !value.item.distributions.is_empty() {
+            line.push_span(Span::raw(" ["));
+            for (i, dist) in value.item.distributions.iter().enumerate() {
+                if i > 0 {
+                    line.push_span(Span::raw(", "));
+                }
+                line.push_span(Span::raw(dist.escape_default().to_string()));
+            }
+            line.push_span(Span::raw("]"));
+        }
 
         ListItem::new(line)
     }
