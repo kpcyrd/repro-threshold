@@ -13,7 +13,7 @@ Run `repro-threshold` with no arguments to start a
 
 - Open Source gives you the source code and often also provides prebuilt binaries
 - You have to trust the build server (and their operators) that they've actually used this source code with no modifications
-- There is an [ongoing effort](https://reproducible-builds.org/) to make the build deterministic and documented so other people can reproduce those binaries
+- There is an [ongoing effort](https://reproducible-builds.org/) to make the build deterministic and the build environment documented so other people can reproduce bit-by-bit identical binaries from source code
 - With `repro-threshold` you can enforce a policy to only install packages reproduced by multiple groups you trust
 
 ## Who to trust?
