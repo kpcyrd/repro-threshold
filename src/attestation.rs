@@ -240,7 +240,7 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        let file = File::open("Cargo.lock").await.unwrap();
+        let file = File::open("Cargo.toml").await.unwrap();
 
         let attestation = include_bytes!("../test_data/filesystem-2025.10.12-1-any.in-toto.link");
 
