@@ -5,6 +5,7 @@ use std::io::stdout;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
+#[command(version)]
 pub struct Args {
     /// Increase logging output (can be used multiple times)
     #[arg(short, long, global = true, action(ArgAction::Count))]
