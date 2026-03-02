@@ -5,10 +5,10 @@ use crate::http;
 use crate::inspect;
 use crate::signing::DomainTree;
 use crate::withhold;
-use reqwest::Url;
 use std::collections::BTreeMap;
 use tokio::fs::File;
 use tokio::io::{self, AsyncBufRead, AsyncBufReadExt, BufReader};
+use url::Url;
 
 #[derive(Debug, Default)]
 struct Request {

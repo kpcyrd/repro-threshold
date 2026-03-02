@@ -5,7 +5,6 @@ use in_toto::{
     crypto::{HashAlgorithm, KeyId, PublicKey},
     models::{Metablock, MetadataWrapper},
 };
-use reqwest::Url;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -13,6 +12,7 @@ use std::slice;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::{fs, task::JoinSet};
+use url::Url;
 
 pub async fn sha256_file<R: AsyncRead + Unpin>(mut reader: R) -> Result<Vec<u8>> {
     let mut hasher = Sha256::new();
