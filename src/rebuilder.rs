@@ -1,12 +1,11 @@
-use std::collections::HashMap;
-
 use crate::errors::*;
 use crate::http;
 use crate::signing;
 use anyhow::Context;
 use in_toto::crypto::PublicKey;
-use reqwest::Url;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use url::Url;
 
 const COMMUNITY_URL: &str =
     "https://raw.githubusercontent.com/kpcyrd/rebuilderd-community/refs/heads/main/README.md";

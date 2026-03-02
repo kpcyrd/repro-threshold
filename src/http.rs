@@ -1,9 +1,9 @@
 use crate::attestation::{self, Attestation};
 use crate::errors::*;
 use crate::inspect::deb::Deb;
-use reqwest::Url;
 use serde::Deserialize;
 use std::time::Duration;
+use url::Url;
 
 const USER_AGENT: &str = concat!(
     env!("CARGO_PKG_NAME"),

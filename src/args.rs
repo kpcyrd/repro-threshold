@@ -1,8 +1,8 @@
 use clap::{ArgAction, CommandFactory, Parser};
 use clap_complete::Shell;
-use reqwest::Url;
 use std::io::stdout;
 use std::path::PathBuf;
+use url::Url;
 
 #[derive(Debug, Parser)]
 #[command(version)]
