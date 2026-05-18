@@ -107,10 +107,7 @@ impl Tree {
 
     pub fn merge(&mut self, other: Tree) {
         for (key_id, attestations) in other.map {
-            self.map
-                .entry(key_id)
-                .or_default()
-                .extend(attestations.into_iter());
+            self.map.entry(key_id).or_default().extend(attestations);
         }
     }
 

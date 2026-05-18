@@ -75,6 +75,10 @@ impl App {
             })?;
 
             match Event::read(&mut events).await {
+                #[allow(
+                    clippy::collapsible_match,
+                    reason = "https://github.com/rust-lang/rust-clippy/issues/17033"
+                )]
                 Some(Event::Yes) => {
                     if self.confirm {
                         // handle yes action
