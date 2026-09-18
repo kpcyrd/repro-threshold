@@ -21,7 +21,7 @@ env_logger = "0.11"
 futures = "0.3"
 in-toto = "0.4"
 log = "0.4"
-pem = "3"
+pem = "4"
 ratatui = "0.30"
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 serde = { version = "1", features = ["derive"] }
