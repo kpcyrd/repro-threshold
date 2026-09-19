@@ -9,7 +9,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1"
-astral-tokio-tar = "0.6"
+astral-tokio-tar = "0.7"
 async-compression = { version = "0.4", features = ["tokio", "xz"] }
 bytes = "1"
 clap = { version = "4.5", features = ["derive"] }
@@ -21,7 +21,7 @@ env_logger = "0.11"
 futures = "0.3"
 in-toto = "0.4"
 log = "0.4"
-pem = "3"
+pem = "4"
 ratatui = "0.30"
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 serde = { version = "1", features = ["derive"] }
